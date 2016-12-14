@@ -1,0 +1,32 @@
+{
+    "name": "ULocks",
+    "version": "0.1.0",
+    "description": "Usage Lock Policies for Flow Control",
+    "homepage": "https://github.com/SEDARI/ulocks/wiki",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/SEDARI/ulocks.git"
+    },
+    "contributors": [
+        {
+            "name": "Daniel Schreckling"
+        }
+    ],
+    "keywords": [
+        "Usage Locks",
+        "Flow Locks",
+        "Flow Control",
+        "Access Control Framework"
+    ],
+    "dependencies": {
+        "clone": "^2.1.0"
+    },
+    "optionalDependencies": {
+    },
+    "devDependencies": {
+    },
+    "engines": {
+        "node": ">=4.0 <=7.2.1"
+    }
+}
