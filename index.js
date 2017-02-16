@@ -1,4 +1,5 @@
 var Policy = require("./Policy.js");
+var PolicySet = require("./PolicySet.js");
 var Entity = require("./Entity.js");
 var Lock = require("./Lock.js");
 var Context = require("./Context");
@@ -13,7 +14,9 @@ var init = function(settings) {
 }
 
 module.exports = {
-    Context : Context,
-    Policy : Policy,
-    init : init
+    Context: Context,
+    Entity: Entity,
+    Policy: Policy,
+    PolicySet: PolicySet,
+    init: init
 }
