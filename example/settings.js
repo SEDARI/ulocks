@@ -11,5 +11,6 @@ module.exports = {
         "/prop"   :  6,
         "/var"    :  6,
     },
-    lockDir : "./Locks/"
+    locks: "./Locks/",
+    actions: "./Declassifiers/"
 };

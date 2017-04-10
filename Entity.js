@@ -5,6 +5,9 @@
  * @param {object} entity JSON describing a lock
  */
 function Entity (entity) {
+    if(Entity.Types === undefined)
+        throw new Error("Policy framework appears to be not initialized");
+
     /** Identifier specifying the type of this entity 
      * @member {Entity.Type}
      */

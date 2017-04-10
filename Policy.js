@@ -1,13 +1,12 @@
 "use strict";
 
-if(global && typeof print !== "function") {
-	var PolicyConfig = require("./PolicyConfig.js");
-    var Lock = require(PolicyConfig.rootDir + "./Lock.js");
-    var Flow = require(PolicyConfig.rootDir + "./Flow.js");
-    var Entity = require(PolicyConfig.rootDir + "./Entity.js");
-    var Context = require(PolicyConfig.rootDir + "./Context.js");
-	var clone = require("clone");
-}
+var PolicyConfig = require("./PolicyConfig.js");
+var Lock = require(PolicyConfig.rootDir + "./Lock.js");
+var Flow = require(PolicyConfig.rootDir + "./Flow.js");
+var Entity = require(PolicyConfig.rootDir + "./Entity.js");
+var Context = require(PolicyConfig.rootDir + "./Context.js");
+var Action = require("./Action.js");
+var clone = require("clone");
 
 var Policy = (function() {
 
@@ -88,6 +87,10 @@ var Policy = (function() {
         this.entity = null;
         this.flows = null;
 
+        if(!flows)
+            throw new Error("Policy: Cannot construct policy without valid flow specifications.");
+
+        // TODO: remove as this appears to be patching an old version
         if(flows.object !== undefined) {
             var policyDummy = {};
 
@@ -97,57 +100,62 @@ var Policy = (function() {
             if(policyDummy.flows) {
                 this.flows = [];
                 for(var f in policyDummy.flows) {
-                    // this.flows.push(new Flow(policyDummy.flows[f]));
                     this.addFlow(new Flow(policyDummy.flows[f]));
                 }
             }
 
-            for(var i in this.flows) {
-                var flow = this.flows[i];
-
-                if(flow.source) {
-                    this.flows[i].source.name = undefined;
-                    if(flow.source.id && flow.source.type == 'user' && !flow.locks) {
-                        flow.locks = [ Lock.createLock({ path : "isUser", args : [ flow.source.id ] }) ];
-                        flow.source.id = undefined;
-                    }
-                } else {
-                    this.flows[i].target.name = undefined;
-                    if(flow.target.id && flow.target.type == 'user' && !flow.locks) {
-                        flow.locks = [ Lock.createLock({ path : "isUser", args : [ flow.target.id ] }) ];
-                        flow.target.id = undefined;
-                    }
-                }
-            }
-        } else if(flows instanceof Policy || flows.flows) {
+            /*for(var i in this.flows) {
+              var flow = this.flows[i];
+              
+              if(flow.source) {
+              this.flows[i].source.name = undefined;
+              if(flow.source.id && flow.source.type == 'user' && !flow.locks) {
+              flow.locks = [ Lock.createLock({ path : "isUser", args : [ flow.source.id ] }) ];
+              flow.source.id = undefined;
+              }
+              } else {
+              this.flows[i].target.name = undefined;
+              if(flow.target.id && flow.target.type == 'user' && !flow.locks) {
+              flow.locks = [ Lock.createLock({ path : "isUser", args : [ flow.target.id ] }) ];
+              flow.target.id = undefined;
+              }
+              }
+              }*/
+            
+        } else if(flows instanceof Policy || flows.flows || flows.actions) {
             var policy = flows;
-
-            console.log("-11-");
 
             if(entity) {
                 throw new Error("Policy: Error: Entity must be undefined to construct Policy object from other Policy object");
             }
 
             if(policy.entity) {
+                // console.log("new Entity");
                 this.entity = new Entity(policy.entity);
             }
-            console.log("-12-");
-
-            // console.log("this: "+JSON.stringify(this, null, 2));
 
             if(policy.flows !== null) {
                 this.flows = [];
                 for(var i in policy.flows) {
-                    console.log("policy.flows["+i+"]: "+JSON.stringify(policy.flows[i]));
+                    // console.log("policy.flows["+i+"]: "+JSON.stringify(policy.flows[i]));
                     var newFlow = new Flow(policy.flows[i]);
-                    console.log("Flow generated");
+                    // console.log("Flow generated");
                     // this.flows.push(newFlow);
                     this.addFlow(newFlow);
-                    console.log("newFlow: "+newFlow);
+                    // console.log("newFlow: "+newFlow);
                 }
             }
 
-            console.log("-19-");
+            if(policy.actions && policy.actions.length) {
+                var l = policy.actions.length;
+                if(l > 0) {
+                    this.actions = [];
+                    for(var i = 0; i < l; i++) {
+                        this.actions[i] = Action.createAction(policy.actions[i]);
+                    }
+                }
+            }
+            
         } else {
             // if no entity is specified for the policy, it is
             // a data policy, a policy for a specific entity otherwise
@@ -166,7 +174,6 @@ var Policy = (function() {
                         // this.flows.push(new Flow(flows[i]));
                         this.addFlow(new Flow(flows[i]));
                     }
-
                 } else {
                     throw new Error("Policy: Cannot construct rule from flows which are not contained in an array");
                 }
@@ -207,6 +214,8 @@ var Policy = (function() {
 
     // **method bot()** returns the least restrictive policy of the framework
     cls.bot = function() {
+        // console.log("bot");
+        // console.log("Entity.MinType: ", Entity.MinType);
         return new Policy([ { target : { type: Entity.MinType } }, {source : { type : Entity.MinType } } ], { type : Entity.MinType });
     };
 
@@ -232,7 +241,7 @@ var Policy = (function() {
         },
 
         addFlow : function(newFlow) {
-            if(newFlow instanceof Flow) {
+            if(newFlow instanceof Flow) {                
                 var isSrcFlow = (!newFlow.target);
                 var closedLock = Lock.closedLock();
 
@@ -246,6 +255,7 @@ var Policy = (function() {
                             return;
                     }
 
+                // THIS SHOULD
                 for(var f in this.flows) {
                     var flow = this.flows[f];
                     var srctrg = "";
@@ -317,16 +327,16 @@ var Policy = (function() {
             var dresult = []; // the eval result for the item entering this node
             var eresult = []; // the eval result for the entity where data enters
 
-            console.log("=========== CHECKINCOMING ===========");
+            /* console.log("=========== CHECKINCOMING ===========");
             console.log("trgPolicy: "+ trgPolicy);
             console.log("dataPolicy: "+ dataPolicy);
             if(context && context.locks)
-                console.log("lock context: "+JSON.stringify(context.locks, null, 2)); 
+                console.log("lock context: "+JSON.stringify(context.locks, null, 2)); */
 
             // First verify whether the data policy allows the
             // flow into the target/this node
 
-            console.log("Iterate data policy: ");
+            // console.log("Iterate data policy: ");
 
             // here the subject to be checked is the target
             // and the object is the message itself
@@ -338,13 +348,13 @@ var Policy = (function() {
                 
                 var flow = dataPolicy.flows[f];
 
-                console.log("\tflow: "+flow);
+                // console.log("\tflow: "+flow);
 
                 // the type of the flow policy target is equal or 
                 // dominates (is more general than) the type of the actual target
                 if(flow.target.dominatesType(trgPolicy.entity)) {
 
-                    console.log("\ttype of policy target dominates actual target");
+                    // console.log("\ttype of policy target dominates actual target");
 
                     var tmpContext = new Context(context);
                     tmpContext.setReceiverContext();
@@ -352,18 +362,18 @@ var Policy = (function() {
                     // iterate through all locks of the flow and determine its closed locks
                     var conflicts1 = flow.getClosedLocks(tmpContext, flow.target.type);
 
-                    console.log("\t\t*1 CONFLICTS: ",conflicts1);
+                    // console.log("\t\t*1 CONFLICTS: ",conflicts1);
                     dresult.push(conflicts1);
                 } else {
                     // console.log("NO DOMINATION for "+flow.target+" and "+targetPolicy.entity);
                     var toPush = { allopen : false, conditional : false, entity : flow.target };
-                    console.log("\t\t1 ENTITY CONFLICT: " + flow.target);
+                    // console.log("\t\t1 ENTITY CONFLICT: " + flow.target);
                     dresult.push(toPush);
                 }
             }
 
-            console.log();
-            console.log("\t\t-- check whether node policy accepts message");
+            /* console.log();
+            console.log("\t\t-- check whether node policy accepts message");*/
 
             // Second, verify whether the node policy of the
             // node receiving data allows the data to enter the node
@@ -542,7 +552,6 @@ var Policy = (function() {
                     // console.log("\t\tconflicts: "+JSON.stringify(conflicts));
                     srcResult.push(conflicts);
                 } else {
-                    console.log("\t\tEntity conflict! "+flowTrg+" not dominated by reader)");
                     srcResult.push({ allopen : false, conditional : false, entity : flowTrg });
                 }
             }

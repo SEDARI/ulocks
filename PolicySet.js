@@ -40,7 +40,9 @@ var PolicySet = (function() {
         
         if(pol instanceof Array) {
             for(var p in pol) {
+                console.log("generate new with ", pol[p]);
                 this.add(new Policy(pol[p]));
+                console.log("Done");
             }
             return;
         }

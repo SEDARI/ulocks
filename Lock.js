@@ -86,11 +86,16 @@ function readLocks(dir) {
 
 Lock.init = function(settings) {
     var baseDir = process.cwd();
+
+    if(!settings.locks) {
+        throw new Error("Unable to initialize Locks. Invalid settings.locks property!");
+        return;
+    }
     
-    if(settings.lockDir[0] !== path.sep)
-        settings.lockDir = baseDir + path.sep + settings.lockDir;
+    if(settings.locks[0] !== path.sep)
+        settings.locks = baseDir + path.sep + settings.locks;
     
-    return readLocks(settings.lockDir);
+    return readLocks(settings.locks);
 };
 
 Lock.createLock = function(lock) {

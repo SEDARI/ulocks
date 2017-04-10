@@ -8,7 +8,7 @@ function valid(o) {
 }
 
 var Flow = (function() {
-    
+
     // Constructor
     var cls = function(flow) {
         if(!valid(flow)) {
@@ -313,7 +313,22 @@ var Flow = (function() {
                     });
                 } else
                     str += "always";
-                str = "{"+str+" ==> "+this.target+"}";
+
+                str = "{"+str+" ==> " + this.target;
+
+                if(this.hasOwnProperty('actions')) {
+                    var al = this.actions.length
+                    str += " do ";
+
+                    this.actions.forEach(function(action,i) {
+                        str += action;
+                        if(i < al - 1)
+                            str += " then ";
+                    });
+
+                    str += " ";
+                }
+                str += "}";
             } else {
                 str = "{" + this.source + " ==> ";
                 if(this.hasOwnProperty('locks')) {
@@ -324,6 +339,20 @@ var Flow = (function() {
                     });
                 } else
                     str += "always";
+
+                if(this.hasOwnProperty('actions')) {
+                    var al = this.actions.length
+                    str += " do ";
+
+                    this.actions.forEach(function(action,i) {
+                        str += action;
+                        if(i < al - 1)
+                            str += " then ";
+                    });
+
+                    str += " ";
+                }
+
                 str += "}";
             }
             return str;
