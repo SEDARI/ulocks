@@ -12,5 +12,5 @@ module.exports = {
         "/var"    :  6,
     },
     locks: "./Locks/",
-    actions: "./Declassifiers/"
+    actions: "./Actions/"
 };

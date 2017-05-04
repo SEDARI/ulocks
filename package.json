@@ -20,7 +20,8 @@
         "Access Control Framework"
     ],
     "dependencies": {
-        "clone": "^2.1.0"
+        "clone": "^2.1.0",
+        "winston": "^2.3.1"
     },
     "optionalDependencies": {
     },

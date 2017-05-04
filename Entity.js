@@ -2,7 +2,7 @@
 
 /** 
  * @class Entity
- * @param {object} entity JSON describing a lock
+ * @param {object} entity JSON describing an entity
  */
 function Entity (entity) {
     if(Entity.Types === undefined)

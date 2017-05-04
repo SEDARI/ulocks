@@ -159,6 +159,7 @@ var Flow = (function() {
             return complies;
         },
 
+        // TODO: Change into promissing version
         getClosedLocks : function(context, scope) {
             var conflictLocks = [];
             var allopen = true;

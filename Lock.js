@@ -1,14 +1,26 @@
+/** 
+ * Lock module
+ * @module Lock
+ * @author Daniel Schreckling
+ */
+
 "use strict";
 
 var fs = require("fs");
 var path = require("path");
+var w = require("winston");
 
 var PolicyConfig = require("./PolicyConfig");
 var Entity = require("./Entity.js");
 
 var lockConstructors = {};
 
-// ## Constructor
+w.level = process.env.LOG_LEVEL;
+
+/** 
+ * @class Lock
+ * @param {object} lock JSON describing a lock
+ */
 function Lock(lock) {
 
     /* if(this.constructor === Object) {
@@ -71,9 +83,10 @@ function readLocks(dir) {
                     try {
                         var newLock = require(filePath);
                         newLock(Lock);
+                        w.log('info', "Success: Lock in '"+filePath+"' is now registered.");
                         resolve();
                     } catch(err) {
-                        console.log("ERROR: Unable to load lock in '"+filePath+"'!");
+                        w.log('error', "Unable to load lock in '"+filePath+"'!");
                         reject(err);
                     }
                 }
@@ -88,19 +101,22 @@ Lock.init = function(settings) {
     var baseDir = process.cwd();
 
     if(!settings.locks) {
-        throw new Error("Unable to initialize Locks. Invalid settings.locks property!");
-        return;
+        w.log('error', "Unable to initialize Locks. Invalid 'settings.locks' property!");
+        return Promise.reject(new Error("Unable to initialize Locks. Invalid settings.locks property!"));
     }
-    
+
+    // if settings.actions starts with path separator, it contains the absolute 
+    // path to the directory from which the actions should be loaded
     if(settings.locks[0] !== path.sep)
         settings.locks = baseDir + path.sep + settings.locks;
+
+    w.log('info', "Searching for locks at '"+settings.locks+"'"); 
     
     return readLocks(settings.locks);
 };
 
 Lock.createLock = function(lock) {
     if(!lockConstructors[lock.lock]) {
-        // console.log("CALL INITLOCKS FOR "+lock.lock);
         Lock.initLocks();
     }
     
@@ -178,57 +194,60 @@ Lock.prototype.toString = function() {
 
 // **method isOpen** must be overwritten by the corresponding lock class
 Lock.prototype.isOpen = function(lockContext) {
-    throw new Error("Lock: isOpen is required to be overwritten");
+    w.log("error", "Lock '"+this.lock+"' is required to overwrite method isOpen!");
+    return Promise.reject(new Error("Lock '"+this.lock+"' is required to overwrite method isOpen!"));
 };
 
 // function tries to merge this lock with the argument lock
 // returns a new lock if successful, null otherwise
 Lock.prototype.lub = function(lock) {
-    throw new Error("Lock: lub is required to be overwritten");
+    w.log("error", "Lock '"+this.lock+"' is required to overwrite method lub!");
+    return Promise.reject(new Error("Lock '"+this.lock+"' is required to overwrite method lub!"));
 };
 
 Lock.prototype.eq = function(lock) {
     if(!lock)
-        return false;
+        return Promise.resolve(false);
     
     if(!(this.lock === undefined && lock.lock === undefined)) {
         if(this.lock === undefined || lock.lock === undefined)
-            return false;
+            return Promise.resolve(false);
         else
             if(this.lock != lock.lock)
-                return false;
+                return Promise.resolve(false);
     }
     
     if(!(this.not === undefined && lock.not === undefined)) {
         if(this.not === undefined || lock.not === undefined)
-            return false;
+            return Promise.resolve(false);
         else
             if(this.not != lock.not)
-                return false;
+                return Promise.resolve(false);
     }
     
     if(!(this.args === undefined && lock.args === undefined)) {
         if(this.args === undefined || lock.args === undefined)
-            return false;
+            return Promise.resolve(false);
         else {
             for(var i in this.args) {
                 if(this.args[i] && this.args[i].type) {
                     if(JSON.stringify(this.args[i]) !== JSON.stringify(lock.args[i]))
-                        return false;
+                        return Promise.resolve(false);
                 } else {
                     if(this.args[i] != lock.args[i])
-                        return false;
+                        return Promise.resolve(false);
                 }
             }
         }
     }
     
-    return true;
+    return Promise.resolve(true);
 };
 
 // returns true if lock is less restrictive than this lock
 Lock.prototype.le = function (lock) {
-    throw new Error("Lock: lub is required to be overwritten");        
+    w.log("error", "Lock '"+this.lock+"' is required to overwrite method le!");
+    return Promise.reject(new Error("Lock '"+this.lock+"' is required to overwrite method le!"));
 };
 
 module.exports = Lock;

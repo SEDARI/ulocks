@@ -2,11 +2,14 @@
 
 var fs = require("fs");
 var path = require("path");
+var w = require("winston");
 
 var PolicyConfig = require("./PolicyConfig");
 var Entity = require("./Entity.js");
 
 var actionConstructors = {};
+
+w.level = process.env.LOG_LEVEL;
 
 function Action(action) {
     if(this.constructor === Object &&
@@ -57,10 +60,10 @@ function readActions(dir) {
                     try {
                         var newAction = require(filePath);
                         newAction(Action);
-                        console.log("Success: Action '"+filePath+"' registered.");
+                        w.log('info', "Success: Action in '"+filePath+"' is now registered.");
                         resolve();
                     } catch(err) {
-                        console.log("ERROR: Unable to load action in '"+filePath+"'!");
+                        w.log('error', "Unable to load action in '"+filePath+"'!");
                         reject(err);
                     }
                 }
@@ -75,12 +78,16 @@ Action.init = function(settings) {
     var baseDir = process.cwd();
 
     if(!settings.actions) {
-        throw new Error("Unable to initialize Actions. Invalid 'settings.actions' property!");
-        return;
+        w.log('error', "Unable to initialize Actions. Invalid 'settings.actions' property!");
+        return Promise.reject(new Error("Unable to initialize Actions. Invalid 'settings.actions' property!"));
     }
-    
+
+    // if settings.actions starts with path separator, it contains the absolute 
+    // path to the directory from which the actions should be loaded
     if(settings.actions[0] !== path.sep)
         settings.actions = baseDir + path.sep + settings.actions;
+
+    w.log('info', "Searching for actions at '"+settings.actions+"'"); 
     
     return readActions(settings.actions);
 };
@@ -120,38 +127,38 @@ Action.register = function (type, constructor) {
 
 Action.prototype.eq = function(action) {
     if(!action)
-        return false;
+        return Promise.resolve(false);
     
     if(!(this.name === undefined && action.name === undefined)) {
         if(this.name === undefined || action.name === undefined)
-            return false;
+            return Promise.resolve(false);
         else
             if(this.name != action.name)
-                return false;
+                return Promise.resolve(false);
     }
 
     if(!(this.args === undefined && action.args === undefined)) {
         if(this.args === undefined || action.args === undefined)
-            return false;
+            return Promise.resolve(false);
         else {
             for(var i in this.args) {
                 if(this.args[i] && this.args[i].type) {
                     if(JSON.stringify(this.args[i]) !== JSON.stringify(action.args[i]))
-                        return false;
+                        return Promise.resolve(false);
                 } else {
                     if(this.args[i] != action.args[i])
-                        return false;
+                        return Promise.resolve(false);
                 }
             }
         }
     }
 
-    return true;
+    return Promise.resolve(true);
 };
 
 // returns true if this action is less invasive than the other
 Action.prototype.le = function (action) {
-    throw new Error("Action: le is required to be overwritten");
+    return Promise.reject(new Error("Action: le is required to be overwritten"));
 };
 
 module.exports = Action;
