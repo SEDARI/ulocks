@@ -207,41 +207,42 @@ Lock.prototype.lub = function(lock) {
 
 Lock.prototype.eq = function(lock) {
     if(!lock)
-        return Promise.resolve(false);
+        return false;
     
     if(!(this.lock === undefined && lock.lock === undefined)) {
         if(this.lock === undefined || lock.lock === undefined)
-            return Promise.resolve(false);
-        else
+            return false;
+        else {
             if(this.lock != lock.lock)
-                return Promise.resolve(false);
+                return false;
+        }
     }
     
     if(!(this.not === undefined && lock.not === undefined)) {
         if(this.not === undefined || lock.not === undefined)
-            return Promise.resolve(false);
+            return false;
         else
             if(this.not != lock.not)
-                return Promise.resolve(false);
+                return false;
     }
     
     if(!(this.args === undefined && lock.args === undefined)) {
         if(this.args === undefined || lock.args === undefined)
-            return Promise.resolve(false);
+            return false;
         else {
             for(var i in this.args) {
                 if(this.args[i] && this.args[i].type) {
                     if(JSON.stringify(this.args[i]) !== JSON.stringify(lock.args[i]))
-                        return Promise.resolve(false);
+                        return false;
                 } else {
                     if(this.args[i] != lock.args[i])
-                        return Promise.resolve(false);
+                        return false;
                 }
             }
         }
     }
-    
-    return Promise.resolve(true);
+
+    return true;
 };
 
 // returns true if lock is less restrictive than this lock
