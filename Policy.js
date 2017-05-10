@@ -90,39 +90,7 @@ var Policy = (function() {
         if(!flows)
             throw new Error("Policy: Cannot construct policy without valid flow specifications.");
 
-        // TODO: remove as this appears to be patching an old version
-        if(flows.object !== undefined) {
-            var policyDummy = {};
-
-            this.entity = new Entity(flows.object);
-            policyDummy.flows = flows.flows;
-
-            if(policyDummy.flows) {
-                this.flows = [];
-                for(var f in policyDummy.flows) {
-                    this.addFlow(new Flow(policyDummy.flows[f]));
-                }
-            }
-
-            /*for(var i in this.flows) {
-              var flow = this.flows[i];
-              
-              if(flow.source) {
-              this.flows[i].source.name = undefined;
-              if(flow.source.id && flow.source.type == 'user' && !flow.locks) {
-              flow.locks = [ Lock.createLock({ path : "isUser", args : [ flow.source.id ] }) ];
-              flow.source.id = undefined;
-              }
-              } else {
-              this.flows[i].target.name = undefined;
-              if(flow.target.id && flow.target.type == 'user' && !flow.locks) {
-              flow.locks = [ Lock.createLock({ path : "isUser", args : [ flow.target.id ] }) ];
-              flow.target.id = undefined;
-              }
-              }
-              }*/
-            
-        } else if(flows instanceof Policy || flows.flows || flows.actions) {
+        if(flows instanceof Policy || flows.flows || flows.actions) {
             var policy = flows;
 
             if(entity) {
