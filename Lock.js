@@ -105,8 +105,8 @@ Lock.init = function(settings) {
         return Promise.reject(new Error("Unable to initialize Locks. Invalid settings.locks property!"));
     }
 
-    // if settings.actions starts with path separator, it contains the absolute 
-    // path to the directory from which the actions should be loaded
+    // if settings.locks starts with path separator, it contains the absolute 
+    // path to the directory from which the locks should be loaded
     if(settings.locks[0] !== path.sep)
         settings.locks = baseDir + path.sep + settings.locks;
 
