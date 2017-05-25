@@ -72,7 +72,7 @@ function Entity (entity) {
 
 Entity.init = function(settings) {
     if(settings.entityTypes === undefined || settings.entityTypes === null)
-        return Promise.reject(new Error("ERROR: Unable to set up Entity types for ULock framework!"));
+        return Promise.reject(new Error("Unable to set up Entity types for ULock framework!"));
     
     Entity.Types = settings.entityTypes;
     Entity.MinType = null;
@@ -92,7 +92,7 @@ Entity.init = function(settings) {
     if(Entity.MinType !== undefined && Entity.MinType !== null)
         return Promise.resolve();
     else
-        return Promise.reject(new Error("ERROR: Unable to compute most general Entity type in ULock framework!"));
+        return Promise.reject(new Error("Unable to compute most general Entity type in ULock framework!"));
 };
 
 // TODO: Put into config file and derive most general entity type!
