@@ -1,25 +1,16 @@
-/** 
- * Lock module
- * @module Lock
- * @author Daniel Schreckling
- */
-
 "use strict";
 
 var fs = require("fs");
 var path = require("path");
 var w = require("winston");
-
-var PolicyConfig = require("./PolicyConfig");
-var Entity = require("./Entity.js");
-
-var lockConstructors = {};
-
 w.level = process.env.LOG_LEVEL;
 
+var Entity = require("./Entity.js");
+
 /** 
- * @class Lock
- * @param {object} lock JSON describing a lock
+ * Constructs a new lock.
+ * @class
+ * @param {Object} lock JSON describing a lock
  */
 function Lock(lock) {
 
@@ -63,6 +54,14 @@ function Lock(lock) {
     }
 };
 
+/** 
+ * Stores constructors of all locks registered with this module
+ * using the static method [registerLock]{@link Lock#registerLock} (mostly called from within a lock)
+ * @static
+ * @private
+ */
+var lockConstructors = {};
+
 function readLocks(dir) {
     var lockFiles = [];
     var locks = [];
@@ -97,6 +96,16 @@ function readLocks(dir) {
     return Promise.all(loads);
 };
 
+/**
+ * Initializes the lock system, reading all locks from the directory specified in
+ * settings.
+ * @arg {Object} settings Checks whether <code>settings.locks</code> is an absolute path. If it is
+ * the locks are loaded from this path. If not, locks are loaded relative to the path
+ * the application was started from
+ * @return {Promise} The returned promise resolves if each lock was loaded successfully,
+ * rejects otherwise.
+ * @static
+ */ 
 Lock.init = function(settings) {
     var baseDir = process.cwd();
 
@@ -115,6 +124,7 @@ Lock.init = function(settings) {
     return readLocks(settings.locks);
 };
 
+/* TODO: check whether this code can be removed as the general constructor is available */
 Lock.createLock = function(lock) {
     if(!lockConstructors[lock.lock]) {
         Lock.initLocks();
@@ -144,27 +154,52 @@ Lock.openLock = function() {
     return Lock.createLock({ lock : "open" });
 };
 
+/**
+ * Registers a new lock, indicating the "type" of the lock (could also 
+ * be called the name of the lock) and its constructor, called when a new 
+ * lock of this type should be constructed, e.g. if it is contained in a 
+ * policy.
+ *
+ * @arg {string} type A unique name for the lock type to be registered
+ * @arg {function} constructor The constructor to be called when a new lock 
+ * of this type is constructed
+ * @throws Throws an error if type or constructor are invalid or if the lock
+ * type has already been registered.
+ * @static
+ */
 Lock.registerLock = function (type, constructor) {
     if(!lockConstructors)
         lockConstructors = {};
-
+    
     if(lockConstructors[type]) {
         throw new Error(type+" is already a registered lock.");
-        return;
+	return;
     }
 
-    if(!constructor)
+    if(!constructor) {
         throw new Error("Constructor for "+type+" is invalid.");
+	return;
+    }
 
     lockConstructors[type] = constructor;
 };
 
+/**
+ * Negates this lock
+ * @function
+ * @return {Lock} Reference to the same, but now negated, lock
+ */
 Lock.prototype.neg = function() {
     this.not = !this.not;
     
     return this;
 };
 
+/**
+ * Transforms this lock into a string representation which can be read easily
+ * @function
+ * @return {string} String representation of the lock
+ */
 Lock.prototype.toString = function() {
     var str = "[[ ";
     
@@ -192,19 +227,12 @@ Lock.prototype.toString = function() {
     return str;
 };
 
-// **method isOpen** must be overwritten by the corresponding lock class
-Lock.prototype.isOpen = function(lockContext) {
-    w.log("error", "Lock '"+this.lock+"' is required to overwrite method isOpen!");
-    return Promise.reject(new Error("Lock '"+this.lock+"' is required to overwrite method isOpen!"));
-};
-
-// function tries to merge this lock with the argument lock
-// returns a new lock if successful, null otherwise
-Lock.prototype.lub = function(lock) {
-    w.log("error", "Lock '"+this.lock+"' is required to overwrite method lub!");
-    return Promise.reject(new Error("Lock '"+this.lock+"' is required to overwrite method lub!"));
-};
-
+/**
+ * Checks whether two locks are equal.
+ * @arg {Lock} lock Lock to compare with <code>this</code> lock
+ * @returns {Boolean} <code>true</code> if both locks are equal, i.e. type, arguments, 
+ * and negation are identical, <code>false</code> otherwise.
+ */
 Lock.prototype.eq = function(lock) {
     if(!lock)
         return false;
@@ -245,7 +273,39 @@ Lock.prototype.eq = function(lock) {
     return true;
 };
 
-// returns true if lock is less restrictive than this lock
+// TODO: Add reference to context
+/**
+ * Must be implemented by the corresponding lock class.
+ * @arg {Context} lockContext The {@link Context} in which the lock is evaluated
+ * @returns {Promise.<Boolean>} Promise resolves to <code>true</code> if the lock is open in the provided 
+ * <code>lockContext</code>, to <code>false</code> if it is closed in the context, rejects otherwise.
+ * @abstract
+ */
+Lock.prototype.isOpen = function(lockContext) {
+    w.log("error", "Lock '"+this.lock+"' is required to overwrite method isOpen!");
+    return Promise.reject(new Error("Lock '"+this.lock+"' is required to overwrite method isOpen!"));
+};
+
+// TODO: Promises in operators lub and le does not really make sense
+/**
+ * Must be implemented by the corresponding lock class. Computes the least upper bound of <code>this</code> lock and the
+ * lock provided as the argument
+ * @arg {Lock} lock Lock against which the least upper bound is computed
+ * @returns {Promise.<Lock>} Promise resolves with the <code>lub</code> if the computation was successful, rejects otherwise.
+ * @abstract
+ */
+Lock.prototype.lub = function(lock) {
+    w.log("error", "Lock '"+this.lock+"' is required to overwrite method lub!");
+    return Promise.reject(new Error("Lock '"+this.lock+"' is required to overwrite method lub!"));
+};
+
+/**
+ * Must be implemented by the corresponding lock class. Checks whether <code>this</code> lock
+ * is less or equally restrictive than the lock provided as an argument.
+ * @arg {Lock} lock Lock to compare with <code>this</code> lock
+ * @returns {Boolean} <code>true</code> if <code>this</code> is less or equally restrictive, <code>false</code> otherwise.
+ * @abstract
+ */
 Lock.prototype.le = function (lock) {
     w.log("error", "Lock '"+this.lock+"' is required to overwrite method le!");
     return Promise.reject(new Error("Lock '"+this.lock+"' is required to overwrite method le!"));
