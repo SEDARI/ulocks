@@ -1,3 +1,11 @@
+/** 
+ * UsageLocks (ulocks) module
+ * @module ulocks
+ * @author Daniel Schreckling
+ * @copyright Daniel Schreckling 2017
+ * @license MIT
+ */
+
 var w = require("winston");
 w.level = process.env.LOG_LEVEL;
 
