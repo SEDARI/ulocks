@@ -62,11 +62,11 @@ function readActions(dir) {
     }
     
     actionFiles.forEach(function(actionFile) {
-        loads.push(new Promise( function(resolve, reject) {
-            var filePath = path.join(dir, actionFile);
-            var stats = fs.statSync(filePath);
-            if (stats.isFile()) {
-                if (/\.js$/.test(filePath)) {
+	var filePath = path.join(dir, actionFile);
+        var stats = fs.statSync(filePath);
+        if (stats.isFile()) {
+            if (/\.js$/.test(filePath)) {	
+		loads.push(new Promise( function(resolve, reject) {
                     try {
                         var newAction = require(filePath);
                         newAction(Action);
@@ -76,9 +76,9 @@ function readActions(dir) {
                         w.log('error', "Unable to load action in '"+filePath+"'!");
                         reject(err);
                     }
-                }
+                }));
             }
-        }));
+	}
     });
 
     return Promise.all(loads);
@@ -206,7 +206,8 @@ Action.prototype.eq = function(action) {
  */
 Action.prototype.lub = function(action) {
     w.error("Action '"+this.action+"' is required to overwrite method Action.prototype.lub!");
-    return Promise.reject(new Error("Action '"+this.action+"' is required to overwrite method Action.prototype.lub!"));
+    throw new Error("Action '"+this.action+"' is required to overwrite method Action.prototype.lub!");
+    return null;
 };
 
 /**
@@ -218,7 +219,8 @@ Action.prototype.lub = function(action) {
  */
 Action.prototype.le = function (action) {
     w.error("Action '"+this.action+"' is required to overwrite method Action.prototype.le!");
-    return Promise.reject(new Error("Action '"+this.action+"' is required to overwrite method Action.prototype.le!"));
+    throw new Error("Action '"+this.action+"' is required to overwrite method Action.prototype.le!");
+    return null;
 };
 
 module.exports = Action;
