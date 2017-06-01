@@ -39,8 +39,10 @@ var init = function(settings) {
 
 
         Promise.all(toInit).then(function() {
+	    w.info("ULocks initialized successfully.");
             resolve();
         }, function(e) {
+	    w.error("ULocks initialization failed.");
             reject(e);
         });
     });
