@@ -29,21 +29,21 @@ function Flow(flow) {
     }
 
     if(flow.hasOwnProperty('op') && valid(flow.op))
-	this.op = flow.op;
+        this.op = flow.op;
 
     // either source or target is defined
     if(flow.source !== undefined) {
         this.source = new Entity(flow.source);
         // ensure target is not defined
         delete this['target'];
-	if(!valid(this.op))
-	    this.op = Flow.OpTypes.Write;
+        if(!valid(this.op))
+            this.op = Flow.OpTypes.Write;
     } else {
         this.target = new Entity(flow.target);
         // ensure source is not defined
         delete this['source'];
-	if(!valid(this.op))
-	    this.op = Flow.OpTypes.Read;
+        if(!valid(this.op))
+            this.op = Flow.OpTypes.Read;
     }
 
     var totalLocks = 0;
@@ -51,41 +51,41 @@ function Flow(flow) {
 
     // TODO: check whether simple cloning is more efficient!
     if(flow.hasOwnProperty('locks') && valid(flow.locks)) {
-	this.locks = {};
+        this.locks = {};
 
-	// be downwards compatible to old policy format
-	// where locks was a pure array
-	if(flow.locks instanceof Array) {
-	    for(var l in flow.locks) {
-		var l = Lock.createLock(flow.locks[l])
-		var key = l.lock;
-		if(!this.locks.hasOwnProperty(key))
-		    this.locks[key] = [];
-		this.locks[key].push(l);
-		numLocks[key]++;
-		totalLocks++;
-	    }
-	} else {
-	    for(var k in flow.locks) {
-		this.locks[k] = [];
-		numLocks[k] = 0;
-		for(var i in flow.locks[k]) {
-		    numLocks[k]++;
-		    totalLocks++;
-		    this.locks[k].push(Lock.createLock((flow.locks[k][i])));
-		}
+        // be downwards compatible to old policy format
+        // where locks was a pure array
+        if(flow.locks instanceof Array) {
+            for(var l in flow.locks) {
+                var l = Lock.createLock(flow.locks[l])
+                var key = l.lock;
+                if(!this.locks.hasOwnProperty(key))
+                    this.locks[key] = [];
+                this.locks[key].push(l);
+                numLocks[key]++;
+                totalLocks++;
             }
-	}
-	    
-	if(totalLocks === 0) {
-	    delete this.locks;
-	} else {
-	    for(k in numLocks) {
-		if(numLocks[k] === 0) {
-		    delete this.locks[k];
-		}
-	    }
-	}
+        } else {
+            for(var k in flow.locks) {
+                this.locks[k] = [];
+                numLocks[k] = 0;
+                for(var i in flow.locks[k]) {
+                    numLocks[k]++;
+                    totalLocks++;
+                    this.locks[k].push(Lock.createLock((flow.locks[k][i])));
+                }
+            }
+        }
+            
+        if(totalLocks === 0) {
+            delete this.locks;
+        } else {
+            for(k in numLocks) {
+                if(numLocks[k] === 0) {
+                    delete this.locks[k];
+                }
+            }
+        }
     }
 };
 
@@ -110,9 +110,9 @@ Flow.prototype.eq = function(otherFlow, conflicts) {
     var matched = true;
     
     if(valid(conflicts)) {
-	showConflicts = conflicts;
-	if(showConflicts)
-	    matched = [];
+        showConflicts = conflicts;
+        if(showConflicts)
+            matched = [];
     }
     
     if(this.hasOwnProperty('target') && !this.target.eq(otherFlow.target) ||
@@ -124,9 +124,9 @@ Flow.prototype.eq = function(otherFlow, conflicts) {
     var otherFlow = otherFlow;
 
     if(Object.keys(thisFlow.locks).length > Object.keys(otherFlow.locks).length) {
-	var tmpFlow = thisFlow;
-	thisFlow = otherFlow;
-	otherFlow = tmpFlow;
+        var tmpFlow = thisFlow;
+        thisFlow = otherFlow;
+        otherFlow = tmpFlow;
     }
 
     var thisHasLocks = thisFlow.hasOwnProperty('locks');
@@ -135,41 +135,41 @@ Flow.prototype.eq = function(otherFlow, conflicts) {
     
     // TODO: Generate test case in which locks have length 0
     if(thisHasLocks) {
-	for(var type in otherFlow.locks) {
-	    if(thisFlow.locks.hasOwnProperty(type)) {
-		var l1 = thisFlow.locks[type];
-		var l2 = otherFlow.locks[type];
-		if(l2.length > l1.length) {
-		    var tmp = l2;
-		    l2 = l1;
-		    l1 = tmp;
-		}
-		
-		for(var k in l1) {
-		    var found = false;
-		    for(var i in l2) {
-			if(l1[k].eq(l2[i])) {
-			    found = true;
-			    break;
-			}
-		    }
-		    if(!found) {
-			if(showConflicts)
-			    matched.push(Lock.createLock(l1[k]));
-			else
-			    matched = false;
-		    } 
-		}
-	    } else {
-		if(showConflicts)
-		    // put all locks in array which were not matched
-		    for(var k in otherFlow.locks[type]) {
-			matched.push(Lock.createLock(otherFlow.locks[type][k]));
-		    }
-		else
-		    matched = false;
-	    }
-	}
+        for(var type in otherFlow.locks) {
+            if(thisFlow.locks.hasOwnProperty(type)) {
+                var l1 = thisFlow.locks[type];
+                var l2 = otherFlow.locks[type];
+                if(l2.length > l1.length) {
+                    var tmp = l2;
+                    l2 = l1;
+                    l1 = tmp;
+                }
+                
+                for(var k in l1) {
+                    var found = false;
+                    for(var i in l2) {
+                        if(l1[k].eq(l2[i])) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if(!found) {
+                        if(showConflicts)
+                            matched.push(Lock.createLock(l1[k]));
+                        else
+                            matched = false;
+                    } 
+                }
+            } else {
+                if(showConflicts)
+                    // put all locks in array which were not matched
+                    for(var k in otherFlow.locks[type]) {
+                        matched.push(Lock.createLock(otherFlow.locks[type][k]));
+                    }
+                else
+                    matched = false;
+            }
+        }
     }
 
     return matched;
@@ -247,9 +247,9 @@ Flow.prototype.le = function(otherFlow, _showConflicts) {
     var showConflicts = false;
     var conflicts = false;
     if(valid(_showConflicts)) {
-	showConflicts = _showConflicts;
-	if(showConflicts)
-	    conflicts = [];
+        showConflicts = _showConflicts;
+        if(showConflicts)
+            conflicts = [];
     }   
 
     // incompatible flows to be compared
@@ -285,10 +285,10 @@ Flow.prototype.le = function(otherFlow, _showConflicts) {
     if(!thisHasLocks && otherHasLocks || (!thisHasLocks && !otherHasLocks))
         return true;
     else
-	// if the other flow has no locks but this one has
-	// the other flow is less restrictive (data can always flow)
-	if(thisHasLocks && !otherHasLocks)
-	    return false;
+        // if the other flow has no locks but this one has
+        // the other flow is less restrictive (data can always flow)
+        if(thisHasLocks && !otherHasLocks)
+            return false;
 
     // at this point we can assume both flows have locks
     // if one flow has more lock types, it must be considered
@@ -298,64 +298,64 @@ Flow.prototype.le = function(otherFlow, _showConflicts) {
     var otherTypes = Object.keys(otherFlow.locks).length;
 
     if(thisTypes > otherTypes)
-	return false;
+        return false;
     else
-	if(thisTypes < otherTypes)
-	    return true;
+        if(thisTypes < otherTypes)
+            return true;
 
     for(var type in otherFlow.locks) {
-	w.debug("\tcheck locks of type '"+type+"'");
-	if(thisFlow.locks.hasOwnProperty(type)) {
-	    var l1 = thisFlow.locks[type];
-	    var l2 = otherFlow.locks[type];
+        w.debug("\tcheck locks of type '"+type+"'");
+        if(thisFlow.locks.hasOwnProperty(type)) {
+            var l1 = thisFlow.locks[type];
+            var l2 = otherFlow.locks[type];
 
-	    // find out whether every lock
-	    // in otherFlow has a smaller
-	    // counterpart in this flow
-	    var covered = [];
-	    for(var k in l1) {
-		var found = false
-		for(var i in l2) {
-		    w.debug("\t\t"+l1[k]+" <= "+l2[i]);
-		    if(l1[k].le(l2[i])) {
-			found = true;
-			covered[i] = true;
-			w.debug("\t\t\t===> true");
-		    } else
-			w.debug("\t\t\t===> false");
-		}
+            // find out whether every lock
+            // in otherFlow has a smaller
+            // counterpart in this flow
+            var covered = [];
+            for(var k in l1) {
+                var found = false
+                for(var i in l2) {
+                    w.debug("\t\t"+l1[k]+" <= "+l2[i]);
+                    if(l1[k].le(l2[i])) {
+                        found = true;
+                        covered[i] = true;
+                        w.debug("\t\t\t===> true");
+                    } else
+                        w.debug("\t\t\t===> false");
+                }
 
-		if(!found) {
-		    if(showConflicts)
-			conflicts.push(Lock.createLock(l1[k]));
-		    else
-			conflicts = true;
-		}
-	    }
+                if(!found) {
+                    if(showConflicts)
+                        conflicts.push(Lock.createLock(l1[k]));
+                    else
+                        conflicts = true;
+                }
+            }
 
-	    for(var i in l2) {
-		if(covered[i] !== true) {
-		    if(showConflicts)
-			conflicts.push(Lock.createLock(l2[i]));
-		    else
-			conflicts = true;
-		}
-	    }
-	} else {
-	    if(showConflicts)
-		// put all locks in array which were not matched
-		for(var k in otherFlow.locks[type]) {
-		    conflicts.push(Lock.createLock(otherFlow.locks[type][k]));
-		}
-	    else
-		conflicts = true;
-	}
+            for(var i in l2) {
+                if(covered[i] !== true) {
+                    if(showConflicts)
+                        conflicts.push(Lock.createLock(l2[i]));
+                    else
+                        conflicts = true;
+                }
+            }
+        } else {
+            if(showConflicts)
+                // put all locks in array which were not matched
+                for(var k in otherFlow.locks[type]) {
+                    conflicts.push(Lock.createLock(otherFlow.locks[type][k]));
+                }
+            else
+                conflicts = true;
+        }
     }
 
     if(showConflicts)
-	return conflicts;
+        return conflicts;
     else
-	return !conflicts;
+        return !conflicts;
 };
 
 // TODO: Change into promissing version
@@ -386,7 +386,7 @@ Flow.prototype.getClosedLocks = function(context, scope) {
                 // console.log("\t\tlock state not cached => get current value");
 
                 s = lock.isOpen(context, scope);
-		
+                
                 if(context && s && s.conditional == false)
                     context.addLockState(lock, context.subject, s.result);
             } else {
@@ -395,7 +395,7 @@ Flow.prototype.getClosedLocks = function(context, scope) {
             
             allopen = allopen && s.result;
             conditional = conditional || s.conditional;
-	    
+            
             if(!s.result || s.conditional) {
                 // s.id = f.id;
                 if(s.lock) {
@@ -403,7 +403,7 @@ Flow.prototype.getClosedLocks = function(context, scope) {
                 }
             }
         });
-	
+        
         if(conflictLocks.length) {
             var dummyFlow = new Flow({ target : { type : Entity.MinType } });
             for(var cl in conflictLocks) {
@@ -506,15 +506,15 @@ Flow.prototype.toString = function() {
 
     if(this.hasOwnProperty('target')) {
         if(this.hasOwnProperty('locks')) {
-	    var c = 0;
-	    for(var t  in this.locks) {
-		(this.locks[t]).forEach(function(lock,i) {
-		    if(c > 0  || i > 0)
-			str += " ^ ";
+            var c = 0;
+            for(var t  in this.locks) {
+                (this.locks[t]).forEach(function(lock,i) {
+                    if(c > 0  || i > 0)
+                        str += " ^ ";
                     str += lock;
-		});
-		c++;
-	    }
+                });
+                c++;
+            }
         } else
             str += "always";
 
@@ -536,14 +536,14 @@ Flow.prototype.toString = function() {
     } else {
         str = "{" + this.source + " ==> ";
         if(this.hasOwnProperty('locks')) {
-	    var c = 0;
-	    for(var t  in this.locks) {
-		(this.locks[t]).forEach(function(lock,i) {
+            var c = 0;
+            for(var t  in this.locks) {
+                (this.locks[t]).forEach(function(lock,i) {
                     str += lock;
                     if(i < l - 1)
-			str += " ^ ";
-		});
-	    }    
+                        str += " ^ ";
+                });
+            }    
         } else
             str += "always";
 
