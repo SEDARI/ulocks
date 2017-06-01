@@ -47,7 +47,7 @@ function Context(context, receiver, message, isStatic) {
      * Specifies the type of context. Changed by using the methods <code>set*Context</code>.
      * @default Context.ContextTypes.normal
      */
-    this.type = Context.ContextTypes.normal;
+    this.type = ContextTypes.normal;
     /**
      * Object used during lock evaluation. Must have the general format <pre>
      * { 
@@ -141,16 +141,16 @@ const ContextTypes = {
 // TODO: check whether this can be removed
 Context.prototype.setType = function(type) {
     switch(type) {
-    case Context.ContextTypes.receiver:
+    case ContextTypes.receiver:
         setReceiverContext();
         break;
-    case Context.ContextTypes.sender:
+    case ContextTypes.sender:
         setSenderContext();
         break;
-    case Context.ContextTypes.msg:
+    case ContextTypes.msg:
         setMsgContext();
         break;
-    case Context.ContextTypes.normal:
+    case ContextTypes.normal:
 	setNormalContext();
 	break;
     default:

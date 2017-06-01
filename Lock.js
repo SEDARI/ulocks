@@ -1,11 +1,18 @@
+// TODO: think about adjusting terminology to flow terminology
+
 "use strict";
 
 var fs = require("fs");
 var path = require("path");
 var w = require("winston");
 w.level = process.env.LOG_LEVEL;
+var Promise = require('bluebird');
 
 var Entity = require("./Entity.js");
+
+function valid(o) {
+    return ((o !== undefined) && (o !== null));
+}
 
 /** 
  * Constructs a new lock.
@@ -13,6 +20,10 @@ var Entity = require("./Entity.js");
  * @param {Object} lock JSON describing a lock
  */
 function Lock(lock) {
+    if(!valid(lockConstructors)) {
+	w.error("Locks have not been initialized yet!");
+	throw new Error("Locks have not been initialized yet");
+    }
 
     /* if(this.constructor === Object) {
        throw new Error("Error: Lock: Can't instantiate an abstract class!");
@@ -31,8 +42,17 @@ function Lock(lock) {
             this.args = [];
             this.not = false;
         } else {
+	    // deal with legacy locks
+	    /* if(lock.path)
+		lock.lock = lock.path;*/
+
+	    if(!valid(lockConstructors[lock.lock])) {
+		w.error("Lock '"+lock.lock+"' has not been registered! Cannot use this lock!");
+		throw new Error("Lock '"+lock.lock+"' has not been registered! Cannot use this lock!");
+	    }
+	    
             if(lock.lock === undefined)
-                throw new Error("Error: Lock does not specify a path");
+                throw new Error("Error: Lock '"+lock+"' does not specify a path");
 
             this.lock = lock.lock;
             if(lock.args !== undefined) {
@@ -70,30 +90,37 @@ function readLocks(dir) {
     try {
         lockFiles = fs.readdirSync(dir);
     } catch(err) {
+	w.error("Unable to load Locks from directory '"+dir+"'");
         return Promise.reject(err);
     }
     
     lockFiles.forEach(function(lockFile) {
-        loads.push(new Promise( function(resolve, reject) {
-            var filePath = path.join(dir, lockFile);
-            var stats = fs.statSync(filePath);
-            if (stats.isFile()) {
-                if (/\.js$/.test(filePath)) {
+	var filePath = path.join(dir, lockFile);
+        var stats = fs.statSync(filePath);
+        if (stats.isFile()) {
+            if (/\.js$/.test(filePath)) {
+		loads.push(new Promise(function(resolve, reject) {
                     try {
                         var newLock = require(filePath);
                         newLock(Lock);
-                        w.log('info', "Success: Lock in '"+filePath+"' is now registered.");
                         resolve();
                     } catch(err) {
-                        w.log('error', "Unable to load lock in '"+filePath+"'!");
-                        reject(err);
+			w.error("Unable to load lock in '"+filePath+"'!");
+			reject(err);
                     }
-                }
-            }
-        }));
+                }));
+	    }
+        }
     });
 
-    return Promise.all(loads);
+    return new Promise(function(resolve, reject) {
+	Promise.all(loads).then(function() {
+	    w.info("All locks read successfully.");
+	    resolve();
+	}, function(e) {
+	    reject(e);
+	});
+    });
 };
 
 /**
@@ -110,7 +137,7 @@ Lock.init = function(settings) {
     var baseDir = process.cwd();
 
     if(!settings.locks) {
-        w.log('error', "Unable to initialize Locks. Invalid 'settings.locks' property!");
+        w.error("Unable to initialize Locks. Invalid 'settings.locks' property!");
         return Promise.reject(new Error("Unable to initialize Locks. Invalid settings.locks property!"));
     }
 
@@ -119,25 +146,34 @@ Lock.init = function(settings) {
     if(settings.locks[0] !== path.sep)
         settings.locks = baseDir + path.sep + settings.locks;
 
-    w.log('info', "Searching for locks at '"+settings.locks+"'"); 
+    w.info("Searching for locks at '"+settings.locks+"'"); 
     
-    return readLocks(settings.locks);
+    return new Promise(function(resolve, reject) {
+	readLocks(settings.locks).then(function(v) {
+	    w.info("All locks successfully loaded and registered.");
+	    resolve();
+	}, function(e) {
+	    w.error("Error occurred while loading locks.", e);
+	    reject(e);
+	});
+    });
 };
 
 /* TODO: check whether this code can be removed as the general constructor is available */
 Lock.createLock = function(lock) {
-    if(!lockConstructors[lock.lock]) {
-        Lock.initLocks();
-    }
-    
     if(!lock)
         return new Lock();
+
+    // console.log("createLock: ", lock);
+
+    if(lock.path)
+	lock.lock = lock.path;
     
     if(!(lock instanceof Lock) && !lock.lock) {
         throw new Error("Lock: Cannot create a lock from other than a Lock!");
         return null;
     }
-        
+
     if(!lockConstructors[lock.lock]) {
         throw new Error("Lock '"+lock.lock+"' does not exist!");
         return null;
@@ -170,7 +206,7 @@ Lock.openLock = function() {
 Lock.registerLock = function (type, constructor) {
     if(!lockConstructors)
         lockConstructors = {};
-    
+
     if(lockConstructors[type]) {
         throw new Error(type+" is already a registered lock.");
 	return;
@@ -180,6 +216,8 @@ Lock.registerLock = function (type, constructor) {
         throw new Error("Constructor for "+type+" is invalid.");
 	return;
     }
+
+    w.log('info', "Success: Lock '"+type+"' is now registered.");
 
     lockConstructors[type] = constructor;
 };
@@ -295,8 +333,9 @@ Lock.prototype.isOpen = function(lockContext) {
  * @abstract
  */
 Lock.prototype.lub = function(lock) {
-    w.log("error", "Lock '"+this.lock+"' is required to overwrite method lub!");
-    return Promise.reject(new Error("Lock '"+this.lock+"' is required to overwrite method lub!"));
+    w.error("Lock '"+this.lock+"' is required to overwrite method lub!");
+    throw new Error("Lock '"+this.lock+"' is required to overwrite method lub!");
+    return null;
 };
 
 /**
@@ -307,8 +346,9 @@ Lock.prototype.lub = function(lock) {
  * @abstract
  */
 Lock.prototype.le = function (lock) {
-    w.log("error", "Lock '"+this.lock+"' is required to overwrite method le!");
-    return Promise.reject(new Error("Lock '"+this.lock+"' is required to overwrite method le!"));
+    w.error("Lock '"+this.lock+"' is required to overwrite method le!");
+    throw new Error("Lock '"+this.lock+"' is required to overwrite method le!");
+    return false;
 };
 
 module.exports = Lock;

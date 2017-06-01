@@ -308,17 +308,37 @@ Flow.prototype.le = function(otherFlow, _showConflicts) {
 	if(thisFlow.locks.hasOwnProperty(type)) {
 	    var l1 = thisFlow.locks[type];
 	    var l2 = otherFlow.locks[type];
-	    
+
+	    // find out whether every lock
+	    // in otherFlow has a smaller
+	    // counterpart in this flow
+	    var covered = [];
 	    for(var k in l1) {
+		var found = false
 		for(var i in l2) {
-		    w.debug("\t\t"+l1+" <= "+l2);
-		    if(!l1[k].le(l2[i])) {
-			w.debug("\t\t\t---> false");
-			if(showConflicts)
-			    conflicts.push(Lock.createLock(l1[k]));
-			else
-			    conflicts = true;
-		    }
+		    w.debug("\t\t"+l1[k]+" <= "+l2[i]);
+		    if(l1[k].le(l2[i])) {
+			found = true;
+			covered[i] = true;
+			w.debug("\t\t\t===> true");
+		    } else
+			w.debug("\t\t\t===> false");
+		}
+
+		if(!found) {
+		    if(showConflicts)
+			conflicts.push(Lock.createLock(l1[k]));
+		    else
+			conflicts = true;
+		}
+	    }
+
+	    for(var i in l2) {
+		if(covered[i] !== true) {
+		    if(showConflicts)
+			conflicts.push(Lock.createLock(l2[i]));
+		    else
+			conflicts = true;
 		}
 	    }
 	} else {
