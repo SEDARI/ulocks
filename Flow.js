@@ -49,6 +49,8 @@ function Flow(flow) {
     var totalLocks = 0;
     var numLocks = {};
 
+    // TODO: add actions!!!
+
     // TODO: check whether simple cloning is more efficient!
     if(flow.hasOwnProperty('locks') && valid(flow.locks)) {
         this.locks = {};
@@ -104,7 +106,7 @@ Flow.prototype.hasTrg = function() {
     return this.hasOwnProperty('target');
 };
 
-// TODO: compare operations also!!
+// TODO: also compare operations and actions!!
 Flow.prototype.eq = function(otherFlow, conflicts) {
     var showConflicts = false;
     var matched = true;
@@ -123,7 +125,13 @@ Flow.prototype.eq = function(otherFlow, conflicts) {
     var thisFlow = this;
     var otherFlow = otherFlow;
 
-    if(Object.keys(thisFlow.locks).length > Object.keys(otherFlow.locks).length) {
+    var tlength = Object.keys(thisFlow.locks).length;
+    var olength = Object.keys(otherFlow.locks).length;
+
+    if(!showConflicts && tlength != olength)
+        return false;
+
+    if(tlength > olength) {
         var tmpFlow = thisFlow;
         thisFlow = otherFlow;
         otherFlow = tmpFlow;
@@ -147,6 +155,7 @@ Flow.prototype.eq = function(otherFlow, conflicts) {
                 
                 for(var k in l1) {
                     var found = false;
+                    console.log("l1: ", l1);
                     for(var i in l2) {
                         if(l1[k].eq(l2[i])) {
                             found = true;
@@ -175,74 +184,8 @@ Flow.prototype.eq = function(otherFlow, conflicts) {
     return matched;
 };
 
-Flow.prototype.le2 = function(otherFlow) {
-    console.log("LE: "+this+" <= "+otherFlow);
-
-    var conflictLocks = [];
-    var result = undefined;
-
-    // incompatible flows to be compared
-    // TODO: decide whether to better throw an error here
-    if((valid(this.target) && valid(otherFlow.source)) ||
-       (valid(this.source) && valid(otherFlow.target)))
-        return false;
-
-    // TODO: should not happen
-    if(!valid(this.source) && !valid(this.target))
-        return false;
-
-    // TODO: Clarify which intention that has!
-    if(!otherFlow.source && !otherFlow.target)
-        return true;
-
-    if(this.target) {
-        if(!this.target.dominates(otherFlow.target))
-            return false;
-    } else {
-        if(!this.source.dominates(otherFlow.source))
-            return false;
-    }
-
-    var complies = true;
-    var covered = [];
-
-    for(var l1 in this.locks) {
-        var lock1 = this.locks[l1];
-        if(!otherFlow.locks || otherFlow.locks.length === 0) {
-            complies = false;
-            continue;
-        }
-        
-        for(var l2 in otherFlow.locks) {
-            var lock2 = otherFlow.locks[l2];
-            if(lock1.lock === lock2.lock) {
-                // console.log("cmp "+lock1+" and "+lock2);
-                if(lock1.le(lock2)) {
-                    // console.log("** set true **");
-                    covered[l1] = true;
-                } else {
-                    // TODO RECORD CONFLICT FOR CONFLICT RESOLUTION
-                }
-            }
-        }
-    }
-            
-    var complies = true;
-    if(this.locks && this.locks.length) {
-        for(var l1 in this.locks) {
-            if(!covered[l1]) {
-                // console.log("CONFLICT: "+JSON.stringify(otherFlow.locks[l2]));
-                complies = false;
-            }
-        }
-    }
-    // console.log("\t=> "+complies);
-
-    return complies;
-};
-
 Flow.prototype.le = function(otherFlow, _showConflicts) {
-    console.log("LE: "+this+" <= "+otherFlow);
+    w.debug("Flow.prototype.le: "+this+" <= "+otherFlow);
 
     var showConflicts = false;
     var conflicts = false;
@@ -359,66 +302,93 @@ Flow.prototype.le = function(otherFlow, _showConflicts) {
 };
 
 // TODO: Change into promissing version
-Flow.prototype.getClosedLocks = function(context, scope) {
-    var conflictLocks = [];
-    var allopen = true;
-    var conditional = false;
-    var resLocks = [];
+Flow.prototype.getClosedLocks = function(context, scope, showConflicts) {
+    w.debug("-> Flow.prototype.getClosedLocks: ", this);
+    var f = this;
+    
+    return new Promise(function(resolve, reject) {
+        var conflicts = [];
+        var allopen = true;
+        var cond = false;
+        var resLocks = [];
 
-    if(this.hasOwnProperty('locks')) {
-        // console.log("\t\t-X-");
-        var f = this;
-        this.locks.forEach(function(lock, i) {
-            var s = undefined;
-
-            /* console.log("\t\tlock: "+lock);
-               console.log("\t\tCurrent lock state: ",context.locks); */
-
-            // check whether lockstate is already in context
-            /* if(context) {
-               s = context.getLockState(lock, context.sender);
-               }
-               console.log("LOCK STATE: ",s);
-               console.log("CONTEXT STATE: ",context.isStatic);*/
-                    
-            // lock state is not know => compute it
-            if(s === undefined) {
-                // console.log("\t\tlock state not cached => get current value");
-
-                s = lock.isOpen(context, scope);
-                
-                if(context && s && s.conditional == false)
-                    context.addLockState(lock, context.subject, s.result);
-            } else {
-                s = { result : s, conditional : false, lock : lock };
-            }
-            
-            allopen = allopen && s.result;
-            conditional = conditional || s.conditional;
-            
-            if(!s.result || s.conditional) {
-                // s.id = f.id;
-                if(s.lock) {
-                    conflictLocks.push(s.lock);
-                }
-            }
-        });
+        console.log("-0-: ", f);
         
-        if(conflictLocks.length) {
-            var dummyFlow = new Flow({ target : { type : Entity.MinType } });
-            for(var cl in conflictLocks) {
-                dummyFlow.locks = dummyFlow.lubLock(conflictLocks[cl]);
-            }
-            resLocks = dummyFlow.locks;
+        if(f.hasOwnProperty('locks')) {
+            var promises = [];
+
+            console.log("-1-");
+            
+            for(var type in f.locks) {
+                var locks = f.locks[type];
+                locks.forEach(function(lock, i) {
+                    var s = undefined;
+
+                    /* console.log("\t\tlock: "+lock);
+                       console.log("\t\tCurrent lock state: ",context.locks); */
+
+                    // check whether lockstate is already in context
+                    /* if(context) {
+                       s = context.getLockState(lock, context.sender);
+                       }
+                       console.log("LOCK STATE: ",s);
+                       console.log("CONTEXT STATE: ",context.isStatic);*/
+                    
+                    // lock state is not know => compute it
+                    
+                    if(s === undefined) {
+                        w.debug("Flow.prototype.getClosedLocks: lock state of '"+lock+"' not cached => get current value");
+
+                        promises.push(lock.isOpen(context, scope));
+                    } else {
+                        promises.push(Promise.resolve({ open : s, cond : false, lock : lock }));
+                    }
+                });
+            };
+            
+
+            Promise.all(promises).then(function(lockStates) {
+                console.log("lockStates: ", lockStates);
+                for(var i in lockStates) {
+                    
+                    // if(context && s && s.cond == false)
+                    // context.addLockState(lock, context.subject, s.result);
+                    
+                    allopen = allopen && lockStates[i].open;
+                    cond = cond || lockStates[i].cond;
+                    
+                    if(!lockStates[i].open || lockStates[i].cond) {
+                        if(lockStates[i].lock) {
+                            conflicts.push(lockStates[i].lock);
+                        }
+                    }
+                }
+
+                // TODO: Check whether this simplification is required or whether
+                // it just induces extra overhead 
+                if(conflicts.length) {
+                    var dummyFlow = new Flow({ target : { type : Entity.MinType } });
+                    for(var cl in conflicts) {
+                        dummyFlow.locks = dummyFlow.lubLock(conflicts[cl]);
+                    }
+                    resLocks = dummyFlow.locks;
+                }
+
+                var result = { open : allopen, cond : cond };
+                
+                if(resLocks && resLocks.length)
+                    result.locks = resLocks;
+                
+                resolve(result);
+            }, function(error) {
+                w.error("Failed to evaluate lock in flow '"+f+"'!");
+                w.error(error);
+                reject(error);
+            });
+        } else {
+            resolve({ open: true, cond: false });
         }
-    }
-    
-    var result = { allopen : allopen, conditional : conditional };
-    
-    if(resLocks && resLocks.length)
-        result.locks = resLocks;
-    
-    return result;
+    });
 };
 
 // multiplies the locks in this flow with the lock in factor
@@ -428,40 +398,39 @@ Flow.prototype.lubLock = function(factor) {
     var l = this.locks ? this.locks.length : 0;
     var newLocks = [];
     var merged = false;
-    var conflict = false;
     
-    /* 
-       console.log("-----------------------");
-       console.log("this: "+this);
-       console.log("Factor: "+factor);
-    */
-    
-    
-    var lock = factor.copy();
-    
-    for(var i = 0; i < l; i++) {
-        var newLock = this.locks[i].lub(lock);
-        // if the lub returns null, we cannot compute it
-        if(newLock) {
-            if(newLock.lock.length) {
-                newLocks.push(newLock);
+    var lock = Lock.createLock(factor);
+
+    if(this.locks[lock.lock]) {
+        var toMultiply = this.locks[lock.lock];
+
+        console.log("factor: ", factor);
+        console.log("multiply with: ", toMultiply);
+        
+        for(var i in toMultiply) {
+            console.log("i: ", i);
+            console.log("toMultiply[i]: ", toMultiply[i]);
+            var lub = (toMultiply[i]).lub(lock);
+            console.log("\tlub: ", lub);
+            if(lub) {
+                newLocks.push(lub);
                 merged = true;
-            } else 
-                throw new Error("Flow: The result of the least upper bound must be either null or a real lock. However, the lock '"+JSON.stringify(newLock)+"' was generated from '"+this.locks[i]+"' and '"+lock+"'");
-        } else {
-            newLocks.push(this.locks[i]);
+            } else {
+                newLocks.push(Lock.createLock(toMultiply[i]));
+            }
         }
     }
-    
-    if(!merged) {
+
+    if(!merged)
         newLocks.push(lock);
-    }
-    
+
+    console.log("newLocks: ", newLocks);
+
     return newLocks;
 };
 
 Flow.prototype.lub = function(flow) {
-    // console.log("\n*** lub(\n\t"+this+",\n\t"+flow+") --> ");
+    w.debug(">>> Flow.prototype.lub(\n\t"+this+",\n\t"+flow+")");
     
     // flows are incompatible and there is
     // no upper bound on them; we would need
@@ -474,27 +443,32 @@ Flow.prototype.lub = function(flow) {
         var newFlow = new Flow(this);
         
         if(this.target) {
-            if(this.target.dominates(flow.target) || flow.target.dominates(this.target)) {
-                if(this.target.dominates(flow.target))
-                    newFlow.target = new Entity(flow.target);
-                else
-                    newFlow.target = new Entity(this.target);
-            } else 
+            if(this.target.dominates(flow.target))
+                newFlow.target = new Entity(flow.target);
+            else if(flow.target.dominates(this.target))
+                newFlow.target = new Entity(this.target);
+            else 
                 return null;
         } else if(this.source) {
-            if(this.source.dominates(flow.source) || flow.source.dominates(this.source)) {
-                if(this.source.dominates(flow.source))
-                    newFlow.source = new Entity(flow.source);
-                else 
-                    newFlow.source = new Entity(this.source);
-            } else
+            if(this.source.dominates(flow.source))
+                newFlow.source = new Entity(flow.source);
+            else if(flow.source.dominates(this.source))
+                newFlow.source = new Entity(this.source);
+            else
                 return null;
         }
 
-        var fl = flow.locks ? flow.locks.length : 0;
-        var i = 0;
-        for(; i < fl; i++)
-            newFlow.locks = newFlow.lubLock(flow.locks[i]);
+        for(var type in flow.locks) {
+            for(var i in flow.locks[type]) {
+                var r = newFlow.lubLock((flow.locks[type])[i]);
+                if(r.length > 0) {
+                    newFlow.locks[type] = [];
+                    for(var k in r) {
+                        newFlow.locks[type].push(r[k]);
+                    }
+                }
+            }
+        }
         
         return newFlow;
     }
