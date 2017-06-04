@@ -1,10 +1,14 @@
+/*jslint node: true */
+
 "use strict";
 
-var w = require("winston");
+var clone = require('clone');
+var w = require('winston');
 w.level = process.env.LOG_LEVEL;
 
 var Lock = require("./Lock.js");
 var Entity = require("./Entity.js");
+var Action = require("./Action.js");
 
 function valid(o) {
     return ((o !== undefined) && (o !== null));
@@ -35,21 +39,19 @@ function Flow(flow) {
     if(flow.source !== undefined) {
         this.source = new Entity(flow.source);
         // ensure target is not defined
-        delete this['target'];
+        delete this.target;
         if(!valid(this.op))
             this.op = Flow.OpTypes.Write;
     } else {
         this.target = new Entity(flow.target);
         // ensure source is not defined
-        delete this['source'];
+        delete this.source;
         if(!valid(this.op))
             this.op = Flow.OpTypes.Read;
     }
 
     var totalLocks = 0;
     var numLocks = {};
-
-    // TODO: add actions!!!
 
     // TODO: check whether simple cloning is more efficient!
     if(flow.hasOwnProperty('locks') && valid(flow.locks)) {
@@ -58,8 +60,8 @@ function Flow(flow) {
         // be downwards compatible to old policy format
         // where locks was a pure array
         if(flow.locks instanceof Array) {
-            for(var l in flow.locks) {
-                var l = Lock.createLock(flow.locks[l])
+            for(var i in flow.locks) {
+                var l = Lock.createLock(flow.locks[i]);
                 var key = l.lock;
                 if(!this.locks.hasOwnProperty(key))
                     this.locks[key] = [];
@@ -71,10 +73,10 @@ function Flow(flow) {
             for(var k in flow.locks) {
                 this.locks[k] = [];
                 numLocks[k] = 0;
-                for(var i in flow.locks[k]) {
+                for(var j in flow.locks[k]) {
                     numLocks[k]++;
                     totalLocks++;
-                    this.locks[k].push(Lock.createLock((flow.locks[k][i])));
+                    this.locks[k].push(Lock.createLock((flow.locks[k][j])));
                 }
             }
         }
@@ -82,14 +84,21 @@ function Flow(flow) {
         if(totalLocks === 0) {
             delete this.locks;
         } else {
-            for(k in numLocks) {
-                if(numLocks[k] === 0) {
-                    delete this.locks[k];
+            for(var n in numLocks) {
+                if(numLocks[n] === 0) {
+                    delete this.locks[n];
                 }
             }
         }
     }
-};
+
+    if(flow.hasOwnProperty('actions') && valid(flow.actions)) {
+        this.actions = [];
+        for(var i in flow.actions) {
+            this.actions.push(Action.createAction(flow.actions[i]));
+        }
+    }
+}
 
 Flow.OpTypes = {
     Read: "read",
@@ -123,7 +132,6 @@ Flow.prototype.eq = function(otherFlow, conflicts) {
     }
 
     var thisFlow = this;
-    var otherFlow = otherFlow;
 
     var tlength = Object.keys(thisFlow.locks).length;
     var olength = Object.keys(otherFlow.locks).length;
@@ -172,8 +180,8 @@ Flow.prototype.eq = function(otherFlow, conflicts) {
             } else {
                 if(showConflicts)
                     // put all locks in array which were not matched
-                    for(var k in otherFlow.locks[type]) {
-                        matched.push(Lock.createLock(otherFlow.locks[type][k]));
+                    for(var j in otherFlow.locks[type]) {
+                        matched.push(Lock.createLock(otherFlow.locks[type][j]));
                     }
                 else
                     matched = false;
@@ -218,7 +226,6 @@ Flow.prototype.le = function(otherFlow, _showConflicts) {
     }
 
     var thisFlow = this;
-    var otherFlow = otherFlow;
 
     var thisHasLocks = thisFlow.hasOwnProperty('locks');
     var otherHasLocks = otherFlow.hasOwnProperty('locks');
@@ -257,7 +264,7 @@ Flow.prototype.le = function(otherFlow, _showConflicts) {
             // counterpart in this flow
             var covered = [];
             for(var k in l1) {
-                var found = false
+                var found = false;
                 for(var i in l2) {
                     w.debug("\t\t"+l1[k]+" <= "+l2[i]);
                     if(l1[k].le(l2[i])) {
@@ -276,10 +283,10 @@ Flow.prototype.le = function(otherFlow, _showConflicts) {
                 }
             }
 
-            for(var i in l2) {
-                if(covered[i] !== true) {
+            for(var j in l2) {
+                if(covered[j] !== true) {
                     if(showConflicts)
-                        conflicts.push(Lock.createLock(l2[i]));
+                        conflicts.push(Lock.createLock(l2[j]));
                     else
                         conflicts = true;
                 }
@@ -287,8 +294,8 @@ Flow.prototype.le = function(otherFlow, _showConflicts) {
         } else {
             if(showConflicts)
                 // put all locks in array which were not matched
-                for(var k in otherFlow.locks[type]) {
-                    conflicts.push(Lock.createLock(otherFlow.locks[type][k]));
+                for(var h in otherFlow.locks[type]) {
+                    conflicts.push(Lock.createLock(otherFlow.locks[type][h]));
                 }
             else
                 conflicts = true;
@@ -301,7 +308,6 @@ Flow.prototype.le = function(otherFlow, _showConflicts) {
         return !conflicts;
 };
 
-// TODO: Change into promissing version
 Flow.prototype.getClosedLocks = function(context, scope, showConflicts) {
     w.debug("-> Flow.prototype.getClosedLocks: ", this);
     var f = this;
@@ -312,40 +318,37 @@ Flow.prototype.getClosedLocks = function(context, scope, showConflicts) {
         var cond = false;
         var resLocks = [];
 
-        console.log("-0-: ", f);
-        
         if(f.hasOwnProperty('locks')) {
             var promises = [];
 
-            console.log("-1-");
-            
+            var checkLock = function(lock, i) {
+                var s;
+                
+                /* console.log("\t\tlock: "+lock);
+                   console.log("\t\tCurrent lock state: ",context.locks); */
+                
+                // check whether lockstate is already in context
+                /* if(context) {
+                   s = context.getLockState(lock, context.sender);
+                   }
+                   console.log("LOCK STATE: ",s);
+                   console.log("CONTEXT STATE: ",context.isStatic);*/
+                
+                // lock state is not know => compute it
+                
+                if(s === undefined) {
+                    w.debug("Flow.prototype.getClosedLocks: lock state of '"+lock+"' not cached => get current value");
+                    
+                    promises.push(lock.isOpen(context, scope));
+                } else {
+                    promises.push(Promise.resolve({ open : s, cond : false, lock : lock }));
+                }
+            };
+
             for(var type in f.locks) {
                 var locks = f.locks[type];
-                locks.forEach(function(lock, i) {
-                    var s = undefined;
-
-                    /* console.log("\t\tlock: "+lock);
-                       console.log("\t\tCurrent lock state: ",context.locks); */
-
-                    // check whether lockstate is already in context
-                    /* if(context) {
-                       s = context.getLockState(lock, context.sender);
-                       }
-                       console.log("LOCK STATE: ",s);
-                       console.log("CONTEXT STATE: ",context.isStatic);*/
-                    
-                    // lock state is not know => compute it
-                    
-                    if(s === undefined) {
-                        w.debug("Flow.prototype.getClosedLocks: lock state of '"+lock+"' not cached => get current value");
-
-                        promises.push(lock.isOpen(context, scope));
-                    } else {
-                        promises.push(Promise.resolve({ open : s, cond : false, lock : lock }));
-                    }
-                });
-            };
-            
+                locks.forEach(checkLock);
+            }
 
             Promise.all(promises).then(function(lockStates) {
                 console.log("lockStates: ", lockStates);
@@ -538,6 +541,34 @@ Flow.prototype.toString = function() {
     }
     return str;
 };
+
+Flow.prototype.actOn = function(data, context, scope) {
+    console.log(">> Flow.prototype.actOn");
+    var self = this;
+    return new Promise(function(resolve, reject) {
+        if(self.hasOwnProperty('actions') && valid(self.actions)) {
+            console.log("found some actions");
+            var newData = Promise.resolve(clone(data));
+            self.actions.forEach(function(action) {
+                newData = newData.then(function(v) {
+                    if(action.apply !== undefined)
+                        return action.apply(v, context, scope);
+                    else
+                        return Promise.reject(new Error("Action does not define method 'apply'"));
+                }, function(e) {
+                    w.error("Flow.prototype.actOn is not able to apply actions as one action is defined inappropriately.");
+                    return Promise.reject(e);
+                });
+            });
+            
+            newData.then(function(v) {
+                w.debug("All actions have been applied.");
+                resolve(v);
+            });
+        } else
+            resolve(clone(data));
+    });
+}
 
 Flow.prototype.compile2PolicyEval = function() {
     var srctrg = this.source ? this.source.compile2PolicyEval() : this.target.compile2PolicyEval();
