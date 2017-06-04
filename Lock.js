@@ -19,10 +19,10 @@ function valid(o) {
  * @class
  * @param {Object} lock JSON describing a lock
  */
-function Lock(lock) {
+function Lock(lock) {  
     if(!valid(lockConstructors)) {
-	w.error("Locks have not been initialized yet!");
-	throw new Error("Locks have not been initialized yet");
+        w.error("Locks have not been initialized yet!");
+        throw new Error("Locks have not been initialized yet");
     }
 
     /* if(this.constructor === Object) {
@@ -30,8 +30,8 @@ function Lock(lock) {
        } */
 
     /* if(!lockConstructors == {}) {
-        Lock.initLocks();
-    }*/
+       Lock.initLocks();
+       }*/
 
     if(this.constructor === Object &&
        lock && lock.lock && lockConstructors[lock.lock]) {
@@ -42,15 +42,14 @@ function Lock(lock) {
             this.args = [];
             this.not = false;
         } else {
-	    // deal with legacy locks
-	    /* if(lock.path)
-		lock.lock = lock.path;*/
-
-	    if(!valid(lockConstructors[lock.lock])) {
-		w.error("Lock '"+lock.lock+"' has not been registered! Cannot use this lock!");
-		throw new Error("Lock '"+lock.lock+"' has not been registered! Cannot use this lock!");
-	    }
-	    
+            if(lock.path)
+                lock.lock = lock.path;
+            
+            if(!valid(lockConstructors[lock.lock])) {
+                w.error("Lock '"+lock.lock+"' has not been registered! Cannot use this lock!");
+                throw new Error("Lock '"+lock.lock+"' has not been registered! Cannot use this lock!");
+            }
+            
             if(lock.lock === undefined)
                 throw new Error("Error: Lock '"+lock+"' does not specify a path");
 
@@ -90,36 +89,36 @@ function readLocks(dir) {
     try {
         lockFiles = fs.readdirSync(dir);
     } catch(err) {
-	w.error("Unable to load Locks from directory '"+dir+"'");
+        w.error("Unable to load Locks from directory '"+dir+"'");
         return Promise.reject(err);
     }
     
     lockFiles.forEach(function(lockFile) {
-	var filePath = path.join(dir, lockFile);
+        var filePath = path.join(dir, lockFile);
         var stats = fs.statSync(filePath);
         if (stats.isFile()) {
             if (/\.js$/.test(filePath)) {
-		loads.push(new Promise(function(resolve, reject) {
+                loads.push(new Promise(function(resolve, reject) {
                     try {
                         var newLock = require(filePath);
                         newLock(Lock);
                         resolve();
                     } catch(err) {
-			w.error("Unable to load lock in '"+filePath+"'!");
-			reject(err);
+                        w.error("Unable to load lock in '"+filePath+"'!");
+                        reject(err);
                     }
                 }));
-	    }
+            }
         }
     });
 
     return new Promise(function(resolve, reject) {
-	Promise.all(loads).then(function() {
-	    w.info("All locks read successfully.");
-	    resolve();
-	}, function(e) {
-	    reject(e);
-	});
+        Promise.all(loads).then(function() {
+            w.info("All locks read successfully.");
+            resolve();
+        }, function(e) {
+            reject(e);
+        });
     });
 };
 
@@ -149,13 +148,13 @@ Lock.init = function(settings) {
     w.info("Searching for locks at '"+settings.locks+"'"); 
     
     return new Promise(function(resolve, reject) {
-	readLocks(settings.locks).then(function(v) {
-	    w.info("All locks successfully loaded and registered.");
-	    resolve();
-	}, function(e) {
-	    w.error("Error occurred while loading locks.", e);
-	    reject(e);
-	});
+        readLocks(settings.locks).then(function(v) {
+            w.info("All locks successfully loaded and registered.");
+            resolve();
+        }, function(e) {
+            w.error("Error occurred while loading locks.", e);
+            reject(e);
+        });
     });
 };
 
@@ -167,7 +166,7 @@ Lock.createLock = function(lock) {
     // console.log("createLock: ", lock);
 
     if(lock.path)
-	lock.lock = lock.path;
+        lock.lock = lock.path;
     
     if(!(lock instanceof Lock) && !lock.lock) {
         throw new Error("Lock: Cannot create a lock from other than a Lock!");
@@ -209,12 +208,12 @@ Lock.registerLock = function (type, constructor) {
 
     if(lockConstructors[type]) {
         throw new Error(type+" is already a registered lock.");
-	return;
+        return;
     }
 
     if(!constructor) {
         throw new Error("Constructor for "+type+" is invalid.");
-	return;
+        return;
     }
 
     w.log('info', "Success: Lock '"+type+"' is now registered.");
@@ -315,16 +314,16 @@ Lock.prototype.eq = function(lock) {
 /**
  * Must be implemented by the corresponding lock class.
  * @arg {Context} lockContext The {@link Context} in which the lock is evaluated
+ * @arg {Scope} scope ...
  * @returns {Promise.<Boolean>} Promise resolves to <code>true</code> if the lock is open in the provided 
  * <code>lockContext</code>, to <code>false</code> if it is closed in the context, rejects otherwise.
  * @abstract
  */
-Lock.prototype.isOpen = function(lockContext) {
+Lock.prototype.isOpen = function(lockContext, scope) {
     w.log("error", "Lock '"+this.lock+"' is required to overwrite method isOpen!");
     return Promise.reject(new Error("Lock '"+this.lock+"' is required to overwrite method isOpen!"));
 };
 
-// TODO: Promises in operators lub and le does not really make sense
 /**
  * Must be implemented by the corresponding lock class. Computes the least upper bound of <code>this</code> lock and the
  * lock provided as the argument
