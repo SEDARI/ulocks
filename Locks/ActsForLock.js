@@ -106,21 +106,17 @@ module.exports = function(Lock) {
                 reject(new Error("ActsForLock.prototype.handleAny is not supported in static analysis yet."));
             } else {
                 self.handleSensor(entity, isStatic).then(function(r) {
-                    console.log("handleSensor");
                     if(r.open)
                         resolve(r);
                     else
                         self.handleNode(entity, isStatic).then(function(r) {
-                            console.log("handleNode");
                             if(r.open)
                                 resolve(r);
                             else
                                 self.handleClient(entity, isStatic).then(function(r) {
-                                    console.log("handleClient");
                                     if(r.open)
                                         resolve(r);
                                     else {
-                                        console.log("failed");
                                         resolve({ open: false, cond: false, lock: self });
                                     }
                                 }, function(e) {
@@ -137,8 +133,8 @@ module.exports = function(Lock) {
     };
 
     ActsForLock.prototype.isOpen = function(context, scope) {
-        console.log("ActsForLock.prototype.isOpen: Scope: ", scope);
-        console.log("ActsForLock.prototype.isOpen: Context: ", context);
+        w.debug("ActsForLock.prototype.isOpen: Scope: ", scope);
+        w.debug("ActsForLock.prototype.isOpen: Context: ", context);
         if(context) {
             switch(scope) {
             case "/any":
@@ -148,7 +144,6 @@ module.exports = function(Lock) {
             case "/client":
                 return this.handleClient(context.entity, context.isStatic);
             case "/sensor":
-                console.log("HANDLE SENSOR");
                 return this.handleSensor(context.entity, context.isStatic);
             case "/user":
                 return Promise.reject(new Error("The entity lock actsFor cannot be applied to a user."));
