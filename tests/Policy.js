@@ -113,7 +113,6 @@ describe("Policy class must handle", function() {
             bot = Policy.bot();
             var p1_copy = new Policy(p1);
 
-            console.log("P1: " + p1);
             var newPol = bot.lub(p1);
             var res = newPol.eq(p1, true);
             expect(res).to.equal(true);
@@ -838,7 +837,6 @@ describe("Policy class must handle", function() {
                 p3.checkAccess(sensor, Policy.bot(), Policy.Operation.READ, c).then(function(r) {
                     resolve(r.grant);
                 }, function(e) {
-                    console.log("ERROR: ", e);
                     reject(e);
                 });
             });
@@ -1208,7 +1206,6 @@ describe("Policy class must handle", function() {
 
     describe("checkFlow", function() {
         it("incoming message allowed to flow to any type", function() {
-            console.log("+++++++++++++++++++++++++++++++++++++++++");
             // var mPol = new Policy([ this.f_touser1_inTime_10_11, this.f_fromany]);
             var mPol = new Policy([ this.f_toany, this.f_fromany]);
 

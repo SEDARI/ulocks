@@ -29,11 +29,11 @@ function processConflicts(conflicts1, conflicts2) {
         cond2 = false;
     }
 
-    console.log();
-    console.log("Merge conflict1 and conflict2:");
-    console.log("conflict1: "+JSON.stringify(conflicts1));
-    console.log("conflict2: "+JSON.stringify(conflicts2));
-
+    /* console.log();
+       console.log("Merge conflict1 and conflict2:");
+       console.log("conflict1: "+JSON.stringify(conflicts1));
+       console.log("conflict2: "+JSON.stringify(conflicts2)); */
+    
     for(var c1 in conflicts1) {
         var conflict1 = conflicts1[c1];
 
@@ -71,7 +71,6 @@ function processConflicts(conflicts1, conflicts2) {
     for(var i in conflicts) {
         var c = conflicts[i];
         var found = false;
-        console.log("-1-");
         for(var j in reducedConflicts) {
             if(c.eq(reducedConflicts[j])) {
                 found = true;
@@ -90,7 +89,7 @@ function processConflicts(conflicts1, conflicts2) {
     finalgrant = grant1 && grant2;
     finalcond = finalgrant && (cond1 || cond2);
 
-    console.log("\tResult of merge: "+JSON.stringify({grant : finalgrant, cond : finalcond, conflicts : reducedConflicts}));
+    // console.log("\tResult of merge: "+JSON.stringify({grant : finalgrant, cond : finalcond, conflicts : reducedConflicts}));
 
     if(finalcond)
         return { grant: true, cond: true, conflicts : reducedConflicts };
@@ -282,23 +281,17 @@ Policy.prototype.checkIncoming = function(trgPolicy, context) {
 
         var flow = dataPolicy.flows[f];
 
-        console.log("\tflow: "+flow);
-
         // the type of the flow policy target is equal or
         // dominates (is more general than) the type of the actual target
         if(flow.target.dominatesType(context.receiver)) {
 
-            console.log("\ttype of policy target dominates actual target");
+            // console.log("\ttype of policy target dominates actual target");
 
             var tmpContext = new Context(context);
             tmpContext.setReceiverContext();
 
-            console.log("-1-")
-
             // iterate through all locks of the flow and determine its closed locks
             item_flowPromises.push(flow.getClosedLocks(tmpContext, context.receiver.type));
-
-            console.log("-2-")
         } else {
             // console.log("NO DOMINATION for "+flow.target+" and "+targetPolicy.entity);
             item_flowPromises.push(Promise.resolve({ open : false, cond : false, entity : context.receiver }));
@@ -326,9 +319,6 @@ Policy.prototype.checkIncoming = function(trgPolicy, context) {
 
         Promise.all(item_flowPromises).then(function(itemEvals) {
             Promise.all(entity_flowPromises).then(function(entityEvals) {
-                console.log("ITEM EVALS: "+JSON.stringify(itemEvals));
-                console.log("ENTITY EVALS: "+JSON.stringify(entityEvals));
-
                 resolve(processConflicts(itemEvals, entityEvals));
             }, function(e) {
                 reject(e);
@@ -423,14 +413,11 @@ Policy.prototype.checkWrite = function(writer, writerPolicy, context) {
             var flow = self.flows[f];
             var flowSrc = flow.source;
 
-            console.log("check with flow "+flow);
-            console.log("writer: ", writer);
-
             // flowSrc is less specific than the writer
             if(flowSrc.dominates(writer)) {
                 flowPromises.push(flow.getClosedLocks(context, flow.source.type));
             } else {
-                console.log("\t\tEntity conflict! ("+flowSrc+" not dominated by writer)");
+                // console.log("\t\tEntity conflict! ("+flowSrc+" not dominated by writer)");
                 flowPromises.push(Promise.resolve({ open : false, cond : false, entity : writer }));
             }
         }
@@ -467,7 +454,7 @@ Policy.prototype.checkRead = function(reader, readerPolicy, context) {
 
             // flowTrg is less specific than the reader
             if(flowTrg.dominates(reader)) {
-                console.log(flowTrg + " dominates " + reader);
+                // console.log(flowTrg + " dominates " + reader);
                 flowPromises.push(flow.getClosedLocks(context, flow.target.type));
             } else {
                 flowPromises.push(Promise.resolve({ open: false, cond: false, entity: reader }));
@@ -495,8 +482,6 @@ Policy.prototype.eq = function(other) {
         if(!this.entity.eq(other.entity)) {
             return false;
         }
-
-    console.log("-1-");
 
     var covered = [];
     for(var f1 in this.flows) {
@@ -748,7 +733,7 @@ Policy.createMessageArray = function(msg) {
                             resultArray[i] = subResultArray;
                         }
                     } else {
-                        console.log("NO SUB ARRAY");
+                        // console.log("NO SUB ARRAY");
 
                         // outer object similar to the policyObject
                         var shell = {};
@@ -765,7 +750,7 @@ Policy.createMessageArray = function(msg) {
                         // msg.value.value.properties[i] is the complete msg
                         // object
                         shell.value.value = clone(msg.value.value.properties[i]);
-                        console.log("SUB: %j",shell.value.value.labels);
+                        // console.log("SUB: %j",shell.value.value.labels);
 
                         resultArray[i] = shell;
 
