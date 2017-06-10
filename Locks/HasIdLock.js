@@ -1,6 +1,9 @@
+var w = require('winston');
+w.level = process.env.LOG_LEVEL;
+
 module.exports = function(Lock) {
     "use strict";
-    
+
     var HasIdLock = function(lock) {
         // call the super class constructor
         Lock.call(this, lock);
@@ -11,13 +14,13 @@ module.exports = function(Lock) {
     HasIdLock.prototype = Object.create(Lock.prototype);
 
     HasIdLock.prototype.le = function(other) {
-	console.log("HasIdLock: "+this+" <= "+other);
-	if(this.eq(other))
-	    return true;
-	else {
-	    console.log("====> false");
-	    return false;
-	}
+        w.debug("HasIdLock.prototype.le: "+this+" <= "+other);
+        if(this.eq(other))
+            return true;
+        else {
+            w.debug("\t====> false");
+            return false;
+        }
     };
 
     HasIdLock.prototype.copy = function() {
@@ -31,9 +34,9 @@ module.exports = function(Lock) {
         } else {
             if((subject.type == '/user' && subject.data.id == this.args[0] && !this.not) ||
                ((subject.type != '/user' || subject.data.id != this.args[0]) && this.not))
-                return { result : true, conditional : false };
+                return { open: true, cond: false };
             else
-                return { result : false, conditional : false, lock : this };
+                return { open: false, cond: false, lock : this };
         }
     };
 
@@ -43,9 +46,9 @@ module.exports = function(Lock) {
         } else {
             if((subject.type == 'sensor' && subject.data.id == this.args[0] && !this.not) ||
                ((subject.type != 'sensor' || subject.data.id != this.args[0]) && this.not))
-                return { result : true, conditional : false };
+                return { open: true, cond: false };
             else
-                return { result : false, conditional : false, lock : this };
+                return { open: false, cond: false, lock : this };
         }
     };
 
@@ -56,39 +59,37 @@ module.exports = function(Lock) {
             var r = this.handleSensor(subject, isStatic);
             if(this.not) {
                 if(!r.result)
-                    return { result : false, conditional : false, lock : this };
+                    return { open: false, cond: false, lock : this };
             } else
                 if(r.result)
                     return r;
-            
+
             r = this.handleUser(subject, isStatic);
             if(this.not) {
                 if(!r.result)
-                    return { result : false, conditional : false, lock : this };
+                    return { open: false, cond: false, lock : this };
             } else
                 if(r.result)
                     return r;
-            
+
             if(this.not)
-                return { result : true, conditional : false };
+                return { open: true, cond: false };
             else
-                return { result : false, conditional : false, lock : this };
+                return { open: false, cond: false, lock : this };
         }
     };
 
     HasIdLock.prototype.isOpen = function(context, scope) {
-	if(context) {
-            var subject = null;
-
+        if(context) {
             switch(scope) {
             case "/any" :
-                return this.handleAny(context.subject, context.isStatic);
+                return this.handleAny(context.entity, context.isStatic);
                 break;
             case "/user" :
-                return this.handleUser(context.subject, context.isStatic);
+                return this.handleUser(context.entity, context.isStatic);
                 break;
             case "/sensor" :
-                return this.handleSensor(context.subject, context.isStatic);
+                return this.handleSensor(context.entity, context.isStatic);
                 break;
             default :
                 throw new Error("Unknown scope '"+scope+"' for hasId lock evaluation.");
@@ -99,7 +100,7 @@ module.exports = function(Lock) {
 
     HasIdLock.prototype.lub = function(lock) {
         if(this.eq(lock))
-		    return this;
+                    return this;
         else {
             if(this.lock == lock.lock)
                 return Lock.closedLock();
