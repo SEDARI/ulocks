@@ -1,3 +1,6 @@
+var w = require('winston');
+w.level = process.env.LOG_LEVEL;
+
 module.exports = function(Action) {
     "use strict";
     
@@ -15,7 +18,7 @@ module.exports = function(Action) {
     }
     
     Ignore.prototype.apply = function(msg) {
-        console.log("Apply ignore action");
+        w.debug("Apply ignore action");
 
         return Promise.resolve(msg);
     }

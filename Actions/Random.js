@@ -1,3 +1,6 @@
+var w = require('winston');
+w.level = process.env.LOG_LEVEL;
+
 module.exports = function(Action) {
     "use strict";
     
@@ -15,6 +18,8 @@ module.exports = function(Action) {
     }
 
     Randomize.prototype.apply = function(msg) {
+	w.debug("Apply randomization action");
+	
 	if(msg === null || msg === undefined)
 	    return Promise.resolve(msg);
 	
@@ -32,6 +37,6 @@ module.exports = function(Action) {
     }
     
     Randomize.prototype.toString = function(args) {
-        return "<< randomiize >>";
+        return "<< randomize >>";
     }
 }

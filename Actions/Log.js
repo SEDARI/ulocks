@@ -1,3 +1,6 @@
+var w = require('winston');
+w.level = process.env.LOG_LEVEL;
+
 module.exports = function(Action) {
     "use strict";
     
@@ -15,9 +18,9 @@ module.exports = function(Action) {
     }
 
     Log.prototype.apply = function(msg) {
-        console.log("Apply log action");
+        w.debug("Apply log action");
 
-	console.log("Log-Action: " + JSON.stringify(msg));
+	w.info("Log-Action: " + JSON.stringify(msg));
 
         return Promise.resolve(msg);
     }
