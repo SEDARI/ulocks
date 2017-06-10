@@ -1,5 +1,10 @@
 var chai = require('chai');
 var expect = chai.expect;
+var chaiAsPromised = require('chai-as-promised');
+
+// chai.should();
+
+chai.use(chaiAsPromised);
 
 var ULocks = require("../index.js");
 var Flow = require("../Flow.js");
@@ -19,13 +24,13 @@ before(function(done) {
     )});
 
 
-describe("Flow class", function() {    
+describe("Flow class", function() {
     describe("constructor", function() {
         it("with undefined type", function() {
             var c = function() { var f = new Flow(); };
             expect(c).to.throw();
         });
-        
+
         it("with invalid source", function() {
             var c = function() { new Flow({ source : { type: "xyz" } }) };
             expect(c).to.throw();
@@ -80,10 +85,10 @@ describe("Flow class", function() {
         it("with identical targets and locks",function() {
             var f1 = new Flow({ target : { type: "/any" }, locks : [ { lock : "inTimePeriod", args : [ "10:00", "11:00" ] }, { lock : "hasId", args : [ "1", "2" ] } ] });
             var f2 = new Flow({ target : { type: "/any" }, locks : [ { lock : "inTimePeriod", args : [ "10:00", "11:00" ] }, { lock : "hasId", args : [ "1", "2" ] } ] });
-            
+
             var newFlow = f1.lub(f2);
             var res = newFlow.eq(f2);
-            
+
             expect(f2).to.eql(newFlow);
             expect(res).to.equal(true);
         });
@@ -92,15 +97,15 @@ describe("Flow class", function() {
             var f1 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "10:00", "18:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
             var f2 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "16:00", "20:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
             var lub_f1_f2 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "16:00", "18:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
-            
+
             var copy = new Flow(f1);
-            
+
             var newFlow1 = f1.lub(f2);
             var newFlow2 = f2.lub(copy);
-            console.log("newFlow1: " + newFlow1);
+
             var res1 = newFlow1.eq(lub_f1_f2);
             var res2 = newFlow2.eq(lub_f1_f2);
-            
+
             expect(res1).to.equal(true);
             expect(newFlow1).to.eql(lub_f1_f2);
             expect(res2).to.equal(true);
@@ -173,7 +178,18 @@ describe("Flow class", function() {
             expect(r1).to.equal(false);
             expect(r2).to.equal(false);
         });
-    }); */
+
+        it("with flows with equal locks but in different order", function() {
+            var f1 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "10:15", "10:45" ] }, { path : "inTimePeriod", args : [ "13:15", "18:45" ] }, { lock : "hasId", args : [ "1", "2" ] } ] });
+            var f2 = new Flow({ target : { type: "/any" }, locks : [ { lock : "hasId", args : [ "1", "2" ] }, { path : "inTimePeriod", args : [ "13:15", "18:45" ] }, { path : "inTimePeriod", args : [ "10:15", "10:45" ] } ] });
+
+            var r1 = f1.eq(f2);
+            var r2 = f2.eq(f1);
+
+            expect(r1).to.equal(true);
+            expect(r2).to.equal(true);
+        });
+    });
 
     describe("comparison le", function() {
         it("with equal flows", function() {
@@ -186,7 +202,7 @@ describe("Flow class", function() {
         it("with one flow with time interval starting earlier", function() {
             var f1 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "09:00", "11:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
             var f2 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "10:00", "11:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
-            
+
             var r1 = f1.le(f2);
             var r2 = f2.le(f1);
 
@@ -197,7 +213,7 @@ describe("Flow class", function() {
         it("with one flow with wrapping time interval", function() {
             var f1 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "09:00", "07:00" ] } ] });
             var f2 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "10:00", "11:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
-            
+
             var r1 = f1.le(f2);
             var r2 = f2.le(f1);
 
@@ -208,7 +224,7 @@ describe("Flow class", function() {
         it("with one flow with negated time interval and one regular time interval contained in 'left' side of negated interval", function() {
             var f1 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "11:15", "12:15"], not: true } ] });
             var f2 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "10:10", "11:10" ] } ] });
-            
+
             var r1 = f1.le(f2);
             var r2 = f2.le(f1);
 
@@ -219,7 +235,7 @@ describe("Flow class", function() {
         it("with this flow containing negated time interval and one regular time interval contained in 'right' side of negated interval", function() {
             var f1 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "11:15", "12:15"], not: true } ] });
             var f2 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "12:30", "13:10" ] } ] });
-            
+
             var r1 = f1.le(f2);
             var r2 = f2.le(f1);
 
@@ -230,7 +246,7 @@ describe("Flow class", function() {
         it("with other flow containing negated time interval and one regular time interval contained in 'right' side of negated interval", function() {
             var f1 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "10:00", "13:00"] } ] });
             var f2 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "12:30", "11:00"], not: true } ] });
-            
+
             var r1 = f1.le(f2);
             var r2 = f2.le(f1);
 
@@ -241,7 +257,7 @@ describe("Flow class", function() {
         it("with flows with non-overlapping time intervals", function() {
             var f1 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "11:00", "12:00"] } ] });
             var f2 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "10:00", "11:00" ] } ] });
-            
+
             var r1 = f1.le(f2);
             var r2 = f2.le(f1);
 
@@ -393,7 +409,7 @@ describe("Flow class", function() {
             expect(r1).to.equal(true);
             expect(r2).to.equal(false);
         });
-        
+
         // Note: the policy f2 should not exist a priori as a user will only have one single ID
         it("with le and one flow with different number of users", function() {
             var f1 = new Flow({ target : { type: "/any" }, locks : [ { path : "hasId", args : [ "3", "4" ] } ] });
@@ -427,11 +443,13 @@ describe("Flow class", function() {
 
             var f = new Flow({ target: { type: "/any" }, locks: [ { lock: "inTimePeriod", args: [ (hours-1)+":00", (hours+1)+":00" ] } ] } );
 
-            f.getClosedLocks(dummyContext).then(function(r) {
-                expect(r.open).to.equal(true);
-            }, function(e) {
-                expect(false).to.equal(true);
-            });
+            return expect(new Promise(function(resolve, reject) {
+                f.getClosedLocks(dummyContext).then(function(r) {
+                    resolve(r.open);
+                }, function(e) {
+                    reject(e);
+                });
+            })).to.eventually.equal(true);
         });
 
         it("with one flow with only one time lock which is not open at execution time", function() {
@@ -441,31 +459,48 @@ describe("Flow class", function() {
 
             var f = new Flow({ target: { type: "/any" }, locks: [ { lock: "inTimePeriod", args: [ (hours-2)+":00", (hours-1)+":00" ] } ] } );
 
-            f.getClosedLocks(dummyContext).then(function(r) {
-                expect(r.open).to.equal(false);
-            }, function(e) {
-                expect(false).to.equal(true);
-            });
+            return expect(new Promise(function(resolve, reject) {
+                f.getClosedLocks(dummyContext).then(function(r) {
+                    resolve(r.open);
+                }, function(e) {
+                    reject(e)
+                });
+            })).to.eventually.equal(false);
         });
     });
 
     describe("applying flow actions", function() {
-        it("simply ignore the dummy message", function() {
-            var f = new Flow({ target: { type: "/any" }, locks: [ { lock: "inTimePeriod", args: [ "10:00", "11:00" ] } ], actions: [ { name: "log" }, { name: "randomize" }, { name: "log" }, { name: "delete"} ] } );
+        it("ignore dummy data", function() {
+            var f = new Flow({ target: { type: "/any" }, locks: [ { lock: "inTimePeriod", args: [ "10:00", "11:00" ] } ], actions: [ { action: "ignore" } ] } );
             var dummyContext = { isStatic: false };
-            
-            console.log("f: ", f);
-
             var data = "This is dummy data.";
-            
-            f.actOn(data).then(function(r) {
-                console.log("Actions run ... ");
-                console.log("RESULT: ", r);
-                expect(r.open).to.equal(false);
-            }, function(e) {
-                console.log("ERROR: ", e);
-                expect(false).to.equal(true);
-            });
+
+            return expect(f.actOn(data)).to.eventually.equal(data);
+        });
+
+        it("delete dummy data", function() {
+            var f = new Flow({ target: { type: "/any" }, locks: [ { lock: "inTimePeriod", args: [ "10:00", "11:00" ] } ], actions: [ { action: "delete" } ] } );
+            var dummyContext = { isStatic: false };
+            var data = "This is dummy data.";
+
+            return expect(f.actOn(data)).to.eventually.equal(null);
+        });
+
+        // Note: not a good test! Try to compute randomness of string?
+        it("randomize dummy data", function() {
+            var f = new Flow({ target: { type: "/any" }, locks: [ { lock: "inTimePeriod", args: [ "10:00", "11:00" ] } ], actions: [ { action: "randomize" } ] } );
+            var dummyContext = { isStatic: false };
+            var data = "This is dummy data.";
+
+            return expect(f.actOn(data)).to.eventually.not.equal(data);
+        });
+
+        it("replace dummy data", function() {
+            var f = new Flow({ target: { type: "/any" }, locks: [ { lock: "inTimePeriod", args: [ "10:00", "11:00" ] } ], actions: [ { action: "replace", args: [ "fixed", "TEXT" ] } ] } );
+            var dummyContext = { isStatic: false };
+            var data = "This is dummy data.";
+
+            return expect(f.actOn(data)).to.eventually.equal("TEXT");
         });
     });
 });
