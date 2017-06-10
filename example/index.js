@@ -40,10 +40,14 @@ ulocks.init(settings)
         }
 
         var attrPolicy1 = new Policy([ { target : { type : "/any" } },
-                                       { source : { type : "/user" }, locks : [ { lock : "hasId", args : [ "0" ] } ], actions: [ { name: "delete" } ] } ]);
+                                       { source : { type : "/user" }, locks : {
+                                           "hasId": [ { lock : "hasId", args : [ "0" ] } ]
+                                       }, actions: [ { name: "delete" } ] } ]);
         
         var attrPolicy2 = new Policy([ { target : { type : "/any" } },
-                                       { source : { type : "/user" }, locks : [ { lock : "hasId", args : [ "1" ] } ] } ]);
+                                       { source : { type : "/user" }, locks : {
+                                           "hasId": [ { lock : "hasId", args : [ "1" ] } ]
+                                       }}]);
         
         var userPolicy = new Policy([ { target : { type : "/any" } },
                                       { source : { type : "/any" } } ]);

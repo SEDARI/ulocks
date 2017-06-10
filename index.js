@@ -12,6 +12,7 @@ w.level = process.env.LOG_LEVEL;
 var Policy = require("./Policy.js");
 var PolicySet = require("./PolicySet.js");
 var Entity = require("./Entity.js");
+var Flow = require("./Flow.js");
 var Lock = require("./Lock.js");
 var Action = require("./Action.js");
 var Context = require("./Context");
@@ -22,27 +23,27 @@ var initialized = false;
 
 var init = function(settings) {
     return new Promise(function(resolve, reject) {
-	
-	if(initialized) {
+        
+        if(initialized) {
             w.info("ULocks have already been initialized. Ignore.");
             return resolve();
-	}
+        }
 
-	if(!settings)
+        if(!settings)
             return reject(new Error("Settings expected to initialize ULocks Framework"));
-    
-	var toInit = [];
+        
+        var toInit = [];
 
-	toInit.push(Entity.init(settings));
-	toInit.push(Lock.init(settings));
-	toInit.push(Action.init(settings));
+        toInit.push(Entity.init(settings));
+        toInit.push(Lock.init(settings));
+        toInit.push(Action.init(settings));
 
 
         Promise.all(toInit).then(function() {
-	    w.info("ULocks initialized successfully.");
+            w.info("ULocks initialized successfully.");
             resolve();
         }, function(e) {
-	    w.error("ULocks initialization failed.");
+            w.error("ULocks initialization failed.");
             reject(e);
         });
     });
@@ -52,6 +53,7 @@ module.exports = {
     Action: Action,
     Context: Context,
     Entity: Entity,
+    Flow: Flow,
     Lock: Lock,
     Policy: Policy,
     PolicySet: PolicySet,
