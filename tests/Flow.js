@@ -13,7 +13,7 @@ var Entity = require("../Entity.js");
 
 var settings = require("./settings.js");
 
-before(function(done) {
+/*before(function(done) {
     ULocks.init(settings).then(
         function() {
             done();
@@ -21,8 +21,7 @@ before(function(done) {
             console.log("Something went wrong during initialization of the ulocks policies. Cannot run tests.");
             console.log(e);
         }
-    )});
-
+    )});*/
 
 describe("Flow class", function() {
     describe("constructor", function() {
