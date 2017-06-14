@@ -4,8 +4,6 @@ w.level = process.env.LOG_LEVEL;
 module.exports = function(Lock) {
     "use strict";
 
-    var Context = require("./../Context.js");
-
     var ActsForLock = function(lock) {
         // call the super class constructor
         Lock.call(this, lock);
