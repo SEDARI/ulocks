@@ -15,6 +15,9 @@ function valid(o) {
 }
 
 // TODO: Review merging of conflicts!
+// TODO: It should be possible to distinguish where
+// the conflicting locks come from, i.e. which entity
+// caused the conflict lock to be in the conflictset
 function processConflicts(conflicts1, conflicts2) {
     var grant1 = false, grant2 = false, finalgrant = false;
     var cond1 = true, cond2 = true, finalcond = true;
@@ -33,7 +36,7 @@ function processConflicts(conflicts1, conflicts2) {
        console.log("Merge conflict1 and conflict2:");
        console.log("conflict1: "+JSON.stringify(conflicts1));
        console.log("conflict2: "+JSON.stringify(conflicts2)); */
-    
+
     for(var c1 in conflicts1) {
         var conflict1 = conflicts1[c1];
 
@@ -192,8 +195,8 @@ Policy.top = function() {
 // **method bot()** returns the least restrictive policy of the framework
 Policy.bot = function() {
     return new Policy(
-        [{ target : { type: Entity.MinType } },
-         {source : { type : Entity.MinType } } ],
+        [{ to: true },
+         { to: false } ],
         { type : Entity.MinType });
 };
 
@@ -281,21 +284,13 @@ Policy.prototype.checkIncoming = function(trgPolicy, context) {
 
         var flow = dataPolicy.flows[f];
 
-        // the type of the flow policy target is equal or
-        // dominates (is more general than) the type of the actual target
-        if(flow.target.dominatesType(context.receiver)) {
+        // console.log("\ttype of policy target dominates actual target");
 
-            // console.log("\ttype of policy target dominates actual target");
+        var tmpContext = new Context(context);
+        tmpContext.setReceiverContext();
 
-            var tmpContext = new Context(context);
-            tmpContext.setReceiverContext();
-
-            // iterate through all locks of the flow and determine its closed locks
-            item_flowPromises.push(flow.getClosedLocks(tmpContext, context.receiver.type));
-        } else {
-            // console.log("NO DOMINATION for "+flow.target+" and "+targetPolicy.entity);
-            item_flowPromises.push(Promise.resolve({ open : false, cond : false, entity : context.receiver }));
-        }
+        // iterate through all locks of the flow and determine its closed locks
+        item_flowPromises.push(flow.getClosedLocks(tmpContext, context.receiver.type));
     }
 
     w.debug("---- check whether node policy accepts message ----");
@@ -374,16 +369,16 @@ Policy.prototype.checkFlow = function(policy, direction, context) {
 //
 // checks whether access of subject to the object with
 // operation and the given flow specification is allowed
-Policy.prototype.checkAccess = function(subjectEntity, subjectPolicy, operation, context) {
+Policy.prototype.checkAccess = function(subjectPolicy, operation, context) {
     if(!valid(subjectPolicy) || !valid(context) || !valid(operation)) {
         return Promise.reject(new Error("Policy.prototype.checkAccess: Invalid subjectPolicy or context specification!"));
     }
 
     switch(operation) {
     case Policy.Operation.WRITE:
-        return this.checkWrite(subjectEntity, subjectPolicy, context);
+        return this.checkWrite(subjectPolicy, context);
     case Policy.Operation.READ:
-        return this.checkRead(subjectEntity, subjectPolicy, context);
+        return this.checkRead(subjectPolicy, context);
     case Policy.Operation.EXEC:
     case Policy.Operation.DEL:
         return Promise.reject(new Error("Operation in Policy::checkAccess not implemented yet!"));
@@ -394,7 +389,8 @@ Policy.prototype.checkAccess = function(subjectEntity, subjectPolicy, operation,
     return Promise.reject(new Error("Policy.prototype.checkAccess: Should not get here"));
 };
 
-Policy.prototype.checkWrite = function(writer, writerPolicy, context) {
+// TODO: also use writerPolicy
+Policy.prototype.checkWrite = function(writerPolicy, context) {
     var self = this;
 
     if(!valid(writerPolicy) || !valid(context) || !valid(context.sender))
@@ -402,24 +398,16 @@ Policy.prototype.checkWrite = function(writer, writerPolicy, context) {
 
     return new Promise(function(resolve, reject) {
         var flowPromises = [];
-        w.debug("============ checkWriteAccess ============");
+        w.debug("============ checkWriteAccess ============: ", self.flows);
 
-        // check whether the writer can write to *self*
+        // check whether the writer with writerPolicy can write to *self*
         for(var f in self.flows) {
             // find flows describing writing access to this
             if(self.flows[f].hasTrg())
                 continue;
 
             var flow = self.flows[f];
-            var flowSrc = flow.source;
-
-            // flowSrc is less specific than the writer
-            if(flowSrc.dominates(writer)) {
-                flowPromises.push(flow.getClosedLocks(context, flow.source.type));
-            } else {
-                // console.log("\t\tEntity conflict! ("+flowSrc+" not dominated by writer)");
-                flowPromises.push(Promise.resolve({ open : false, cond : false, entity : writer }));
-            }
+            flowPromises.push(flow.getClosedLocks(context, context.sender.type));
         }
 
         Promise.all(flowPromises).then(function(results) {
@@ -431,8 +419,8 @@ Policy.prototype.checkWrite = function(writer, writerPolicy, context) {
     });
 };
 
-
-Policy.prototype.checkRead = function(reader, readerPolicy, context) {
+// TODO: also use readerPolicy
+Policy.prototype.checkRead = function(readerPolicy, context) {
     var self = this;
 
     if(!valid(readerPolicy) || !valid(context) || !valid(context.sender))
@@ -449,16 +437,7 @@ Policy.prototype.checkRead = function(reader, readerPolicy, context) {
                 continue;
 
             var flow = self.flows[f];
-            var flowTrg = flow.target;
-            var conflictLocks = [];
-
-            // flowTrg is less specific than the reader
-            if(flowTrg.dominates(reader)) {
-                // console.log(flowTrg + " dominates " + reader);
-                flowPromises.push(flow.getClosedLocks(context, flow.target.type));
-            } else {
-                flowPromises.push(Promise.resolve({ open: false, cond: false, entity: reader }));
-            }
+            flowPromises.push(flow.getClosedLocks(context, context.sender.type));
         }
 
         Promise.all(flowPromises).then(function(results) {
@@ -523,12 +502,12 @@ Policy.prototype.le = function(otherPol, write) {
     if(!valid(otherPol.flows))
         return true;
 
-    var srctrg = "target";
+    var to = true;
     if(write)
-        srctrg = "source";
+        to = false;
 
-    var flows1 = this.flows.filter(function(f) { return f[srctrg] != undefined || f[srctrg] != null; } );
-    var flows2 = otherPol.flows.filter(function(f) { return f[srctrg] != undefined || f[srctrg] != null; } );
+    var flows1 = this.flows.filter(function(f) { return f.to === to; } );
+    var flows2 = otherPol.flows.filter(function(f) { return f.to === to; } );
 
     // a policy without any flow allows nothing, i.e.
     // every new flow, weakens the original policy

@@ -12,22 +12,12 @@ var Entity = require("../Entity.js");
 var Context = require("../Context.js");
 var settings = require("./settings.js");
 
-/*before(function(done) {
-    ULocks.init(settings).then(
-        function() {
-            done();
-        }, function(e) {
-            console.log("Something went wrong during initialization of the ulocks policies. Cannot run tests.");
-            console.log(e);
-        }
-    )});*/
-
 describe("Policy class must handle", function() {
 
     beforeEach(function() {
-        this.f1 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "10:00", "11:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
-        this.f2 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "09:00", "15:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
-        this.glb_f1_f2 = new Flow({ target : { type: "/any" }, locks : [ { path : "inTimePeriod", args : [ "09:00", "15:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
+        this.f1 = new Flow({ to: true, locks : [ { path : "inTimePeriod", args : [ "10:00", "11:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
+        this.f2 = new Flow({ to: true, locks : [ { path : "inTimePeriod", args : [ "09:00", "15:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
+        this.glb_f1_f2 = new Flow({ to: true, locks : [ { path : "inTimePeriod", args : [ "09:00", "15:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
 
         this.lock_inTime_10_11 = { path : "inTimePeriod", args : [ "10:00", "11:00" ] };
         this.lock_inTime_08_18 = { path : "inTimePeriod", args : [ "08:00", "18:00" ] };
@@ -36,37 +26,80 @@ describe("Policy class must handle", function() {
         this.lock_inTime_12_14 = { path : "inTimePeriod", args : [ "12:00", "14:00" ] };
         this.lock_inTime_13_14 = { path : "inTimePeriod", args : [ "13:00", "14:00" ] };
 
-        this.f_fromany = new Flow({ source : { type: "/any" } });
-        this.f_toany = new Flow({ target : { type: "/any" } });
+        this.f_fromany = new Flow({ to: false } );
+        this.f_toany = new Flow({ to: true } );
 
-        this.f_toapp1_in1 = new Flow({ target : { type: "/client", id : "1", input : "1" } });
-        this.f_toapp1_in2 = new Flow({ target : { type: "/client", id : "1", input : "2" } });
-        this.f_fromapp1_out1 = new Flow({ source : { type: "/client", id : "1", output : "1" } });
-        this.f_fromapp1_out2 = new Flow({ source : { type: "/client", id : "1", output : "2" } });
+        this.f_toapp1_in1 = new Flow({ to: true, locks: [
+            {lock: "hasType", args: [ "/client" ] },
+            {lock: "hasId", args: [ "1in1" ] } ] } );
+        this.f_toapp1_in2 = new Flow({ to: true, locks: [
+            {lock: "hasType", args: [ "/client" ] },
+            {lock: "hasId", args: [ "1in2" ] } ] } );
+        this.f_fromapp1_out1 = new Flow({ to: false, locks: [
+            {lock: "hasType", args: [ "/client" ] },
+            {lock: "hasId", args: [ "1out1" ] } ] });
+        this.f_fromapp1_out2 = new Flow({ to: false, locks: [
+            {lock: "hasType", args: [ "/client" ] },
+            {lock: "hasId", args: [ "1out2" ] } ] } );
 
-        this.f_touser1 = new Flow({ target : { type: "/user", id : "1" } });
-        this.f_fromuser1 = new Flow({ source : { type: "/user", id : "1" } });
-        this.f_touser2 = new Flow({ target : { type: "/user", id : "2" } });
-        this.f_fromuser2 = new Flow({ source : { type: "/user", id : "2" } });
+        // TODO: rewrite flows and use hasID and some new hasType lock
+        this.f_touser1 = new Flow({ to: true, locks: [ {lock: "hasType", args: [ "/user" ] },
+                                                         {lock: "hasId", args: [ "1" ] } ] });
+        this.f_fromuser1 = new Flow({ to: false, locks: [ {lock: "hasType", args: [ "/user" ] },
+                                                          {lock: "hasId", args: [ "1" ] } ] });
+        this.f_touser2 = new Flow({ to: true, locks: [ {lock: "hasType", args: [ "/user" ] },
+                                                         {lock: "hasId", args: [ "2" ] } ] });
+        this.f_fromuser2 = new Flow({ to: false, locks: [ {lock: "hasType", args: [ "/user" ] },
+                                                          {lock: "hasId", args: [ "2" ] } ] });
 
-        this.f_touser1_inTime_10_11 = new Flow({ target : { type: "/user", id : "1" }, locks : [this.lock_inTime_10_11] });
-        this.f_touser1_inTime_08_18 = new Flow({ target : { type: "/user", id : "1" }, locks : [this.lock_inTime_08_18] });
-        this.f_touser1_inTime_15_20 = new Flow({ target : { type: "/user", id : "1" }, locks : [this.lock_inTime_15_20] });
-        this.f_fromuser1_inTime_10_11 = new Flow({ source : { type: "/user", id : "1" }, locks : [this.lock_inTime_10_11] });
-        this.f_fromuser1_inTime_08_18 = new Flow({ source : { type: "/user", id : "1" }, locks : [this.lock_inTime_08_18] });
-        this.f_fromuser1_inTime_15_20 = new Flow({ source : { type: "/user", id : "1" }, locks : [this.lock_inTime_15_20] });
-        this.f_toany_inTime_13_16 = new Flow({ target : { type: "/any" }, locks : [this.lock_inTime_13_16] });
-        this.f_toany_inTime_12_14 = new Flow({ target : { type: "/any" }, locks : [this.lock_inTime_12_14] });
-        this.f_toany_inTime_13_14 = new Flow({ target : { type: "/any" }, locks : [this.lock_inTime_13_14] });
+        this.f_touser1_inTime_10_11 = new Flow({ to: true, locks : [
+            this.lock_inTime_10_11,
+            {lock: "hasType", args: [ "/user" ] },
+            {lock: "hasId", args: [ "1" ] }] });
+        this.f_touser1_inTime_08_18 = new Flow({ to: true, locks : [
+            this.lock_inTime_08_18,
+            {lock: "hasType", args: [ "/user" ] },
+            {lock: "hasId", args: [ "1" ] }] });
+        this.f_touser1_inTime_15_20 = new Flow({ to: true, locks : [
+            this.lock_inTime_15_20,
+            {lock: "hasType", args: [ "/user" ] },
+            {lock: "hasId", args: [ "1" ] } ] });
+        this.f_fromuser1_inTime_10_11 = new Flow({ to: false, locks : [
+            this.lock_inTime_10_11,
+            {lock: "hasType", args: [ "/user" ] },
+            {lock: "hasId", args: [ "1" ] } ] });
+        this.f_fromuser1_inTime_08_18 = new Flow({ to: false, locks : [
+            this.lock_inTime_08_18,
+            {lock: "hasType", args: [ "/user" ] },
+            {lock: "hasId", args: [ "1" ] } ] });
+        this.f_fromuser1_inTime_15_20 = new Flow({ to: false, locks : [
+            this.lock_inTime_15_20,
+            {lock: "hasType", args: [ "/user" ] },
+            {lock: "hasId", args: [ "1" ] } ] });
+        this.f_toany_inTime_13_16 = new Flow({ to: true, locks : [
+            this.lock_inTime_13_16,
+            {lock: "hasType", args: [ "/any" ] } ] });
+        this.f_toany_inTime_12_14 = new Flow({ to: true, locks : [
+            this.lock_inTime_12_14,
+            {lock: "hasType", args: [ "/any" ] } ] });
+        this.f_toany_inTime_13_14 = new Flow({ to: true, locks : [
+            this.lock_inTime_13_14,
+            {lock: "hasType", args: [ "/any" ] } ] });
 
-        this.f_touser2_inTime_10_11 = new Flow({ target : { type: "/user", id : "2" }, locks : [this.lock_inTime_10_11] });
-        this.f_fromuser2_inTime_10_11 = new Flow({ source : { type: "/user", id : "2" }, locks : [this.lock_inTime_10_11] });
+        this.f_touser2_inTime_10_11 = new Flow({ to: true, locks : [
+            this.lock_inTime_10_11,
+            {lock: "hasType", args: [ "/user" ] },
+            {lock: "hasId", args: [ "2" ] }] });
+        this.f_fromuser2_inTime_10_11 = new Flow({ to: false, locks : [
+            this.lock_inTime_10_11,
+            {lock: "hasType", args: [ "/user" ] },
+            {lock: "hasId", args: [ "2" ] }] });
 
         this.e_any = new Entity({ type : "/any" });
-        this.e_app1_in1 = new Entity({ type : "/client", id : "1", input : "1" });
-        this.e_app1_in2 = new Entity({ type : "/client", id : "1", input : "2" });
-        this.e_app1_out1 = new Entity({ type : "/client", id : "1", output : "1" });
-        this.e_app1_out2 = new Entity({ type : "/client", id : "1", output : "2" });
+        this.e_app1_in1 = new Entity({ type : "/client", id : "1in1" });
+        this.e_app1_in2 = new Entity({ type : "/client", id : "1in2" });
+        this.e_app1_out1 = new Entity({ type : "/client", id : "1out1" });
+        this.e_app1_out2 = new Entity({ type : "/client", id : "1out2" });
 
         this.anyone = new Entity();
         this.user1 = new Entity({type : "/user", id : "1" });
@@ -234,7 +267,7 @@ describe("Policy class must handle", function() {
     describe("comparison le with", function() {
         it("bot policy smaller than policy with time constraints", function() {
             var bot = Policy.bot();
-            var f = new Flow({"target":{"type": "/any"},"locks":[{"path":"inTimePeriod","args":["08:00","16:00"]}]});
+            var f = new Flow({to: true,"locks":[{"path":"inTimePeriod","args":["08:00","16:00"]}]});
             var pol1 = new Policy([f], new Entity({"type": "/any"}));
 
             var r1 = bot.le(pol1);
@@ -254,7 +287,7 @@ describe("Policy class must handle", function() {
         it("with defined flow array and undefined entity (data policy)", function() {
             var p;
             var c = function() {
-                var f = new Flow({ target : { type: "/any" }, locks : [] });
+                var f = new Flow({ to: true, locks : [] });
                 p = new Policy([f]);
             };
             expect(c).to.not.throw();
@@ -267,7 +300,7 @@ describe("Policy class must handle", function() {
             var e = new Entity();
 
             var c = function() {
-                var f = new Flow({ target : { type: "/any" }, locks : [] });
+                var f = new Flow({ to: true, locks : [] });
                 p = new Policy([f], e);
             };
 
@@ -278,7 +311,7 @@ describe("Policy class must handle", function() {
 
         it("with a regular entity policy", function() {
             var e = new Entity();
-            var f = new Flow({ target : { type: "/any" }, locks : [] });
+            var f = new Flow({ to: true, locks : [] });
             var p = new Policy([f], e);
             var p2;
 
@@ -293,7 +326,7 @@ describe("Policy class must handle", function() {
         });
 
         it("with a regular data policy", function() {
-            var f = new Flow({ target : { type: "/any" }, locks : [] });
+            var f = new Flow({ to: true, locks : [] });
             var p = new Policy([f]);
             var p2;
 
@@ -307,7 +340,7 @@ describe("Policy class must handle", function() {
         });
 
         it("with several flows", function() {
-            var f = new Flow({ target : { type: "/any" }, locks : [] });
+            var f = new Flow({ to: true, locks : [] });
             var p = new Policy([f, f, f, f, f]);
             var p2;
 
@@ -321,8 +354,8 @@ describe("Policy class must handle", function() {
         });
 
         it("with filtering identical incoming and outgoing flows", function() {
-            var inF = new Flow({ source : { type: "/any" }, locks : [] });
-            var outF = new Flow({ target : { type: "/any" }, locks : [] });
+            var inF = new Flow({ to: false, locks : [] });
+            var outF = new Flow({ to: true, locks : [] });
             var p = new Policy([inF, inF, outF, outF, outF]);
             var p2 = new Policy(p);
 
@@ -341,11 +374,11 @@ describe("Policy class must handle", function() {
         });
 
         it("with different incoming and outgoing flows", function() {
-            var inF1 = new Flow({ source : { type: "/any" }, locks : [this.lock_inTime_10_11] });
-            var inF2 = new Flow({ source : { type: "/any" }, locks : [this.lock_inTime_12_14] });
-            var outF1 = new Flow({ target : { type: "/any" }, locks : [this.lock_inTime_15_20] });
-            var outF2 = new Flow({ target : { type: "/any" }, locks : [this.lock_inTime_10_11] });
-            var outF3 = new Flow({ target : { type: "/any" }, locks : [this.lock_inTime_12_14] });
+            var inF1 = new Flow({ to: false, locks : [this.lock_inTime_10_11] });
+            var inF2 = new Flow({ to: false, locks : [this.lock_inTime_12_14] });
+            var outF1 = new Flow({ to: true, locks : [this.lock_inTime_15_20] });
+            var outF2 = new Flow({ to: true, locks : [this.lock_inTime_10_11] });
+            var outF3 = new Flow({ to: true, locks : [this.lock_inTime_12_14] });
             var p = new Policy([inF1, inF2, outF1, outF2, outF3]);
             var p2 = new Policy(p);
 
@@ -554,7 +587,7 @@ describe("Policy class must handle", function() {
 
         it("one bot policy and one policy which only allows target flows", function() {
             var bot = Policy.bot();
-            var trg = new Policy([ { target : { type: '/any' } } ], { type : '/any' });
+            var trg = new Policy([ { to: true } ], { type : '/any' });
 
             var newPol1 = bot.lub(trg);
             var res1 = newPol1.eq(trg);
@@ -655,41 +688,6 @@ describe("Policy class must handle", function() {
             var r2 = p2.le(p1);
             expect(r1).to.equal(false);
             expect(r2).to.equal(true);
-        });
-
-        it("policies with more precise sources/targets", function() {
-            var p1 = new Policy([this.f_toany, this.f_fromany], this.user1);
-            var p2 = new Policy([this.f_fromuser1, this.f_touser1], this.user1);
-
-            var r1 = p1.le(p2);
-            var r2 = p2.le(p1);
-            expect(r1).to.equal(true);
-            expect(r2).to.equal(false);
-        });
-
-        it("policies with more precise targets", function() {
-            var p1 = new Policy([this.f_toany, this.f_fromuser1], this.user1);
-            var p2 = new Policy([this.f_fromuser1, this.f_touser1], this.user1);
-
-            var r1 = p1.le(p2);
-            var r2 = p2.le(p1);
-            expect(r1).to.equal(true);
-            expect(r2).to.equal(false);
-        });
-
-        it("policies with more precise sources", function() {
-            var p1 = new Policy([this.f_touser1, this.f_fromany], this.user1);
-            var p2 = new Policy([this.f_fromuser1, this.f_touser1], this.user1);
-
-            var r1 = p1.le(p2);
-            var r2 = p2.le(p1);
-            expect(r1).to.equal(true); // for reading both policies are equivalent
-            expect(r2).to.equal(true);
-
-            r1 = p1.le(p2,true);
-            r2 = p2.le(p1,true);
-            expect(r1).to.equal(true); // for writing p1 <= p2
-            expect(r2).to.equal(false);
         });
 
         it("policies that have identical default policies", function() {
@@ -814,7 +812,23 @@ describe("Policy class must handle", function() {
     describe("checkAccess", function() {
         it("with error when context is null", function() {
             var ent3 = new Entity({ type : "/user", id : "56"});
-            var p3 = new Policy({"object":{"type":"so","id":"123"},"flows":[{"source":{"type":"/user","id":"56"},"locks":[]},{"source":{"type":"/any","name":"{$src}"},"locks":[{"path":"actsFor","args":[{"type":"/any","id":"{$src.id}"},{"type":"/user","id":"56"}]}]},{"target":{"type":"/user","id":"56"},"locks":[]},{"target":{"type":"/any","name":"{$trg}"},"locks":[{"path":"actsFor","args":[{"type":"/any","id":"{$trg.id}"},{"type":"/user","id":"56"}]}]}]});
+            var p3 = new Policy({"object":{"type":"so","id":"123"},"flows":
+                                 [
+                                     {"to": false},
+                                     {"to": false,"locks":[
+                                         {"path":"actsFor","args":[
+                                             {"type":"/any","id":"{$src.id}"},
+                                             56
+                                         ]}
+                                     ]},
+                                     {to: true},
+                                     {to: true,"locks":[
+                                         {"path":"actsFor","args":[{"type":"/any","id":"{$trg.id}"},
+                                                                   56
+                                                                  ]
+                                         }
+                                     ]}
+                                 ]});
 
             var p = p3.checkAccess(ent3, Policy.bot(), Policy.Operation.READ, null);
 
@@ -828,13 +842,16 @@ describe("Policy class must handle", function() {
             var c = new Context({ type: user.type, data: user },
                                 { type: sensor.type, data: sensor });
 
-            var p3 = new Policy([{"source":{"type":"/user"}, locks: [ { lock: "hasId", args: [ "56" ] } ] },
-                                 {"source":{"type":"/any","locks":[{"path":"actsFor","args":[{"type":"/any","id":"{$src.id}"}, "56" ] } ]}},
-                                 {"target":{"type":"/user"}, locks: [ { lock: "hasId", args: [ "56" ] } ] },
-                                 {"target":{"type":"/any"},"locks":[{"path":"actsFor","args":[{"type":"/any","id":"{$trg.id}"}, "56" ]}]}]);
+            // TODO: generate test case in which order of flows 3 and 4 is swapped
+            var p3 = new Policy([{to: false, locks: [ { lock: "hasId", args: [ "56" ] } ] },
+                                 {to: false, "locks": [
+                                     {"path":"actsFor","args":[ 0, "56" ] } ]},
+                                 {to: true, locks: [ { lock: "hasId", args: [ "56" ] } ] },
+                                 {to: true,"locks":[
+                                     {"path":"actsFor","args":[ 0, "56" ]}]}]);
 
             var p = new Promise(function(resolve, reject) {
-                p3.checkAccess(sensor, Policy.bot(), Policy.Operation.READ, c).then(function(r) {
+                p3.checkAccess(Policy.bot(), Policy.Operation.READ, c).then(function(r) {
                     resolve(r.grant);
                 }, function(e) {
                     reject(e);
@@ -864,19 +881,22 @@ describe("Policy class must handle", function() {
                                         { type: this.e_app1_in1.type,
                                           data: this.e_app1_in1 });
 
-            var r1 = p1.checkAccess(this.user1, doAll, Policy.Operation.WRITE, c_u1_app1);
-            var r2 = p1.checkAccess(this.user2, doAll, Policy.Operation.WRITE, c_u2_app1);
-            var r3 = p2.checkAccess(this.user1, doAll, Policy.Operation.WRITE, c_u1_app1);
-            var r4 = p2.checkAccess(this.user2, doAll, Policy.Operation.WRITE, c_u2_app1);
-            var r5 = p3.checkAccess(this.user1, doAll, Policy.Operation.WRITE, c_u1_app1);
-            var r6 = p3.checkAccess(this.user2, doAll, Policy.Operation.WRITE, c_u2_app1);
+            var r1 = p1.checkAccess(doAll, Policy.Operation.WRITE, c_u1_app1);
+            var r2 = p1.checkAccess(doAll, Policy.Operation.WRITE, c_u2_app1);
+            var r3 = p2.checkAccess(doAll, Policy.Operation.WRITE, c_u1_app1);
+            var r4 = p2.checkAccess(doAll, Policy.Operation.WRITE, c_u2_app1);
+            var r5 = p3.checkAccess(doAll, Policy.Operation.WRITE, c_u1_app1);
+            var r6 = p3.checkAccess(doAll, Policy.Operation.WRITE, c_u2_app1);
+
+            var conflictLock1 = Lock.createLock({lock: "hasId", args: [ "1" ]});
+            var conflictLock2 = Lock.createLock({lock: "hasId", args: [ "2" ]});
 
             return Promise.all([
                 expect(r1).to.eventually.eql({grant: true, cond: false}),
                 expect(r2).to.eventually.eql({grant: false, cond: false,
-                                              conflicts:[this.user2]}),
+                                              conflicts:[conflictLock1]}),
                 expect(r3).to.eventually.eql({grant: false, cond: false,
-                                              conflicts: [this.user1]}),
+                                              conflicts: [conflictLock2]}),
                 expect(r4).to.eventually.eql({grant: true, cond: false}),
                 expect(r5).to.eventually.eql({grant: true, cond: false}),
                 expect(r6).to.eventually.eql({grant: true, cond: false})]);
@@ -904,19 +924,22 @@ describe("Policy class must handle", function() {
                                           data: this.e_app1_in1 }
                                        );
 
-            var r1 = p1.checkAccess(this.user1, doAll, Policy.Operation.READ, c_u1_app1);
-            var r2 = p1.checkAccess(this.user2, doAll, Policy.Operation.READ, c_u2_app1);
-            var r3 = p2.checkAccess(this.user1, doAll, Policy.Operation.READ, c_u1_app1);
-            var r4 = p2.checkAccess(this.user2, doAll, Policy.Operation.READ, c_u2_app1);
-            var r5 = p3.checkAccess(this.user1, doAll, Policy.Operation.READ, c_u1_app1);
-            var r6 = p3.checkAccess(this.user2, doAll, Policy.Operation.READ, c_u2_app1);
+            var r1 = p1.checkAccess(doAll, Policy.Operation.READ, c_u1_app1);
+            var r2 = p1.checkAccess(doAll, Policy.Operation.READ, c_u2_app1);
+            var r3 = p2.checkAccess(doAll, Policy.Operation.READ, c_u1_app1);
+            var r4 = p2.checkAccess(doAll, Policy.Operation.READ, c_u2_app1);
+            var r5 = p3.checkAccess(doAll, Policy.Operation.READ, c_u1_app1);
+            var r6 = p3.checkAccess(doAll, Policy.Operation.READ, c_u2_app1);
+
+            var conflictLock1 = Lock.createLock({lock: "hasId", args: [ "1" ]});
+            var conflictLock2 = Lock.createLock({lock: "hasId", args: [ "2" ]});
 
             return Promise.all([
                 expect(r1).to.eventually.eql({grant: true, cond: false}),
                 expect(r2).to.eventually.eql({grant: false, cond: false,
-                                              conflicts: [ this.user2 ] } ),
+                                              conflicts: [ conflictLock1 ] } ),
                 expect(r3).to.eventually.eql({grant: false, cond: false,
-                                              conflicts: [ this.user1 ] } ),
+                                              conflicts: [ conflictLock2 ] } ),
                 expect(r4).to.eventually.eql({grant: true, cond: false}),
                 expect(r5).to.eventually.eql({grant: true, cond: false}),
                 expect(r6).to.eventually.eql({grant: true, cond: false})]);
@@ -944,22 +967,26 @@ describe("Policy class must handle", function() {
 
             var doAll = Policy.bot();
 
-            var r1 = sPol1.checkAccess(this.e_app1_in1, doAll, Policy.Operation.READ, c_app1i1_any);
-            var r2 = sPol2.checkAccess(this.e_app1_in1, doAll, Policy.Operation.READ, c_app1i1_any);
-            var r3 = sPol2.checkAccess(this.e_app1_in2, doAll, Policy.Operation.READ, c_app1i2_any);
-            var r4 = sPol3.checkAccess(this.e_app1_in1, doAll, Policy.Operation.READ, c_app1i1_any);
-            var r5 = sPol3.checkAccess(this.e_app1_in2, doAll, Policy.Operation.READ, c_app1i2_any);
-            var r6 = sPol3.checkAccess(this.e_app1_out2, doAll, Policy.Operation.READ, c_app1o2_any);
+            var r1 = sPol1.checkAccess(doAll, Policy.Operation.READ, c_app1i1_any);
+            var r2 = sPol2.checkAccess(doAll, Policy.Operation.READ, c_app1i1_any);
+            var r3 = sPol2.checkAccess(doAll, Policy.Operation.READ, c_app1i2_any);
+            var r4 = sPol3.checkAccess(doAll, Policy.Operation.READ, c_app1i1_any);
+            var r5 = sPol3.checkAccess(doAll, Policy.Operation.READ, c_app1i2_any);
+            var r6 = sPol3.checkAccess(doAll, Policy.Operation.READ, c_app1o2_any);
+
+            var conflictLock0 = {lock: "hasType", args: [ "/client" ]}
+            var conflictLock1 = Lock.createLock({lock: "hasId", args: [ "1in1" ]});
+            var conflictLock2 = Lock.createLock({lock: "hasId", args: [ "1in2" ]});
 
             return Promise.all([
                 expect(r1).to.eventually.eql({grant: true, cond: false}),
                 expect(r2).to.eventually.eql({grant: false, cond: false,
-                                              conflicts: [ this.e_app1_in1 ] }),
+                                              conflicts: [ conflictLock2 ] }),
                 expect(r3).to.eventually.eql({grant: true, cond: false}),
                 expect(r4).to.eventually.eql({grant: true, cond: false}),
                 expect(r5).to.eventually.eql({grant: true, cond: false}),
                 expect(r6).to.eventually.eql({grant: false, cond: false,
-                                              conflicts: [ this.e_app1_out2 ] } ) ] );
+                                              conflicts: [ conflictLock1, conflictLock2 ] } ) ] );
         });
 
         it("allowing read access from specific port only", function() {
@@ -985,18 +1012,21 @@ describe("Policy class must handle", function() {
                                    data: this.anyone });
 
 
-            var r1 = sPol1.checkAccess(this.e_app1_out1, doAll, Policy.Operation.WRITE, c1);
-            var r2 = sPol1.checkAccess(this.e_app1_out2, doAll, Policy.Operation.WRITE, c2);
-            var r3 = sPol2.checkAccess(this.e_app1_out2, doAll, Policy.Operation.WRITE, c2);
-            var r4 = sPol2.checkAccess(this.e_app1_in1,  doAll, Policy.Operation.WRITE, c3);
-            var r5 = sPol3.checkAccess(this.e_app1_out1, doAll, Policy.Operation.WRITE, c1);
-            var r6 = sPol3.checkAccess(this.e_app1_out2, doAll, Policy.Operation.WRITE, c2);
+            var r1 = sPol1.checkAccess(doAll, Policy.Operation.WRITE, c1);
+            var r2 = sPol1.checkAccess(doAll, Policy.Operation.WRITE, c2);
+            var r3 = sPol2.checkAccess(doAll, Policy.Operation.WRITE, c2);
+            var r4 = sPol2.checkAccess(doAll, Policy.Operation.WRITE, c3);
+            var r5 = sPol3.checkAccess(doAll, Policy.Operation.WRITE, c1);
+            var r6 = sPol3.checkAccess(doAll, Policy.Operation.WRITE, c2);
+
+            var conflictLock1 = Lock.createLock({lock: "hasId", args: [ "1out1" ]});
+            var conflictLock2 = Lock.createLock({lock: "hasId", args: [ "1out2" ]});
 
             return Promise.all([
                 expect(r1).to.eventually.eql({ grant: true, cond: false }),
-                expect(r2).to.eventually.eql({ grant: false, cond: false, conflicts: [this.e_app1_out2] }),
+                expect(r2).to.eventually.eql({ grant: false, cond: false, conflicts: [ conflictLock1 ] }),
                 expect(r3).to.eventually.eql({ grant: true, cond: false }),
-                expect(r4).to.eventually.eql({ grant: false, cond: false, conflicts: [this.e_app1_in1] }),
+                expect(r4).to.eventually.eql({ grant: false, cond: false, conflicts: [ conflictLock2 ] }),
                 expect(r5).to.eventually.eql({ grant: true, cond: false }),
                 expect(r6).to.eventually.eql({ grant: true, cond: false })]);
         });
@@ -1028,29 +1058,29 @@ describe("Policy class must handle", function() {
             var c7 = new Context({type: this.anyso.type, data: this.anyso}, receiver);
 
 
-            var r11 = p1.checkAccess(this.anyone, sPol1, Policy.Operation.WRITE, c1);
-            var r21 = p1.checkAccess(this.anyuser, sPol2, Policy.Operation.WRITE, c2);
-            var r31 = p1.checkAccess(this.user1, sPol3, Policy.Operation.WRITE, c3);
-            var r41 = p1.checkAccess(this.anyapp, sPol4, Policy.Operation.WRITE, c4);
-            var r51 = p1.checkAccess(this.app1, sPol5, Policy.Operation.WRITE, c5);
-            var r61 = p1.checkAccess(this.so1, sPol6, Policy.Operation.WRITE, c6);
-            var r71 = p1.checkAccess(this.anyso, sPol7, Policy.Operation.WRITE, c7);
+            var r11 = p1.checkAccess(sPol1, Policy.Operation.WRITE, c1);
+            var r21 = p1.checkAccess(sPol2, Policy.Operation.WRITE, c2);
+            var r31 = p1.checkAccess(sPol3, Policy.Operation.WRITE, c3);
+            var r41 = p1.checkAccess(sPol4, Policy.Operation.WRITE, c4);
+            var r51 = p1.checkAccess(sPol5, Policy.Operation.WRITE, c5);
+            var r61 = p1.checkAccess(sPol6, Policy.Operation.WRITE, c6);
+            var r71 = p1.checkAccess(sPol7, Policy.Operation.WRITE, c7);
 
-            var r12 = p2.checkAccess(this.anyone, sPol1, Policy.Operation.WRITE, c1);
-            var r22 = p2.checkAccess(this.anyuser, sPol2, Policy.Operation.WRITE, c2);
-            var r32 = p2.checkAccess(this.user1, sPol3, Policy.Operation.WRITE, c3);
-            var r42 = p2.checkAccess(this.anyapp, sPol4, Policy.Operation.WRITE, c4);
-            var r52 = p2.checkAccess(this.app1, sPol5, Policy.Operation.WRITE, c5);
-            var r62 = p2.checkAccess(this.so1, sPol6, Policy.Operation.WRITE, c6);
-            var r72 = p2.checkAccess(this.anyso, sPol7, Policy.Operation.WRITE, c7);
+            var r12 = p2.checkAccess(sPol1, Policy.Operation.WRITE, c1);
+            var r22 = p2.checkAccess(sPol2, Policy.Operation.WRITE, c2);
+            var r32 = p2.checkAccess(sPol3, Policy.Operation.WRITE, c3);
+            var r42 = p2.checkAccess(sPol4, Policy.Operation.WRITE, c4);
+            var r52 = p2.checkAccess(sPol5, Policy.Operation.WRITE, c5);
+            var r62 = p2.checkAccess(sPol6, Policy.Operation.WRITE, c6);
+            var r72 = p2.checkAccess(sPol7, Policy.Operation.WRITE, c7);
 
-            var r13 = p3.checkAccess(this.anyone, sPol1, Policy.Operation.WRITE, c1);
-            var r23 = p3.checkAccess(this.anyuser, sPol2, Policy.Operation.WRITE, c2);
-            var r33 = p3.checkAccess(this.user1, sPol3, Policy.Operation.WRITE, c3);
-            var r43 = p3.checkAccess(this.anyapp, sPol4, Policy.Operation.WRITE, c4);
-            var r53 = p3.checkAccess(this.app1, sPol5, Policy.Operation.WRITE, c5);
-            var r63 = p3.checkAccess(this.so1, sPol6, Policy.Operation.WRITE, c6);
-            var r73 = p3.checkAccess(this.anyso, sPol7, Policy.Operation.WRITE, c7);
+            var r13 = p3.checkAccess(sPol1, Policy.Operation.WRITE, c1);
+            var r23 = p3.checkAccess(sPol2, Policy.Operation.WRITE, c2);
+            var r33 = p3.checkAccess(sPol3, Policy.Operation.WRITE, c3);
+            var r43 = p3.checkAccess(sPol4, Policy.Operation.WRITE, c4);
+            var r53 = p3.checkAccess(sPol5, Policy.Operation.WRITE, c5);
+            var r63 = p3.checkAccess(sPol6, Policy.Operation.WRITE, c6);
+            var r73 = p3.checkAccess(sPol7, Policy.Operation.WRITE, c7);
 
             var grant = { grant: true, cond: false };
             var deny = {grant: false, cond: false, conflicts: [] };
@@ -1103,10 +1133,10 @@ describe("Policy class must handle", function() {
         it("check access of manually generated Policies", function() {
             var outputPol = new Policy({
                 "entity": {"type": "/client", "id": "69426370.b44304" },
-                "flows": [ { "target": { "type": "/any" }, "locks": [ { "path": "inTimePeriod", "args": [ "10:00", "12:00" ] } ] } ] });
+                "flows": [ { to: true, "locks": [ { "path": "inTimePeriod", "args": [ "10:00", "12:00" ] } ] } ] });
             var inputPol = new Policy({
                 "entity": {"type": "/client", "id": "490fd2de.ab6a94", "input": "0" },
-                "flows": [ { "source": { "type": "/any" }, "locks": [ { "path": "inTimePeriod", "args": [ "09:00", "13:00" ] } ] } ] });
+                "flows": [ { to: false, "locks": [ { "path": "inTimePeriod", "args": [ "09:00", "13:00" ] } ] } ] });
 
             var input = new Entity({"type": "/client", "id": "490fd2de.ab6a94", "input": "0" });
             var output =  new Entity({"type": "/client", "id": "69426370.b44304" });
@@ -1149,29 +1179,29 @@ describe("Policy class must handle", function() {
             var c6 = new Context({type: this.e_app1_in1.type, data: this.e_app1_in1}, { type: e6.type, data: e6 });
             var c7 = new Context({type: this.e_app1_in1.type, data: this.e_app1_in1}, { type: e7.type, data: e7 });
 
-            var r11 = p1.checkAccess(e1, sPol1, Policy.Operation.READ, c1);
-            var r21 = p1.checkAccess(e2, sPol2, Policy.Operation.READ, c2);
-            var r31 = p1.checkAccess(e3, sPol3, Policy.Operation.READ, c3);
-            var r41 = p1.checkAccess(e4, sPol4, Policy.Operation.READ, c4);
-            var r51 = p1.checkAccess(e5, sPol5, Policy.Operation.READ, c5);
-            var r61 = p1.checkAccess(e6, sPol6, Policy.Operation.READ, c6);
-            var r71 = p1.checkAccess(e7, sPol7, Policy.Operation.READ, c7);
+            var r11 = p1.checkAccess(sPol1, Policy.Operation.READ, c1);
+            var r21 = p1.checkAccess(sPol2, Policy.Operation.READ, c2);
+            var r31 = p1.checkAccess(sPol3, Policy.Operation.READ, c3);
+            var r41 = p1.checkAccess(sPol4, Policy.Operation.READ, c4);
+            var r51 = p1.checkAccess(sPol5, Policy.Operation.READ, c5);
+            var r61 = p1.checkAccess(sPol6, Policy.Operation.READ, c6);
+            var r71 = p1.checkAccess(sPol7, Policy.Operation.READ, c7);
 
-            var r12 = p2.checkAccess(e1, sPol1, Policy.Operation.READ, c1);
-            var r22 = p2.checkAccess(e2, sPol2, Policy.Operation.READ, c2);
-            var r32 = p2.checkAccess(e3, sPol3, Policy.Operation.READ, c3);
-            var r42 = p2.checkAccess(e4, sPol4, Policy.Operation.READ, c4);
-            var r52 = p2.checkAccess(e5, sPol5, Policy.Operation.READ, c5);
-            var r62 = p2.checkAccess(e6, sPol6, Policy.Operation.READ, c6);
-            var r72 = p2.checkAccess(e7, sPol7, Policy.Operation.READ, c7);
+            var r12 = p2.checkAccess(sPol1, Policy.Operation.READ, c1);
+            var r22 = p2.checkAccess(sPol2, Policy.Operation.READ, c2);
+            var r32 = p2.checkAccess(sPol3, Policy.Operation.READ, c3);
+            var r42 = p2.checkAccess(sPol4, Policy.Operation.READ, c4);
+            var r52 = p2.checkAccess(sPol5, Policy.Operation.READ, c5);
+            var r62 = p2.checkAccess(sPol6, Policy.Operation.READ, c6);
+            var r72 = p2.checkAccess(sPol7, Policy.Operation.READ, c7);
 
-            var r13 = p3.checkAccess(e1, sPol1, Policy.Operation.READ, c1);
-            var r23 = p3.checkAccess(e2, sPol2, Policy.Operation.READ, c2);
-            var r33 = p3.checkAccess(e3, sPol3, Policy.Operation.READ, c3);
-            var r43 = p3.checkAccess(e4, sPol4, Policy.Operation.READ, c4);
-            var r53 = p3.checkAccess(e5, sPol5, Policy.Operation.READ, c5);
-            var r63 = p3.checkAccess(e6, sPol6, Policy.Operation.READ, c6);
-            var r73 = p3.checkAccess(e7, sPol7, Policy.Operation.READ, c7);
+            var r13 = p3.checkAccess(sPol1, Policy.Operation.READ, c1);
+            var r23 = p3.checkAccess(sPol2, Policy.Operation.READ, c2);
+            var r33 = p3.checkAccess(sPol3, Policy.Operation.READ, c3);
+            var r43 = p3.checkAccess(sPol4, Policy.Operation.READ, c4);
+            var r53 = p3.checkAccess(sPol5, Policy.Operation.READ, c5);
+            var r63 = p3.checkAccess(sPol6, Policy.Operation.READ, c6);
+            var r73 = p3.checkAccess(sPol7, Policy.Operation.READ, c7);
 
             var grant = { grant: true, cond: false };
             var deny = {grant: false, cond: false, conflicts: [] };
@@ -1205,11 +1235,11 @@ describe("Policy class must handle", function() {
     });
 
     describe("checkFlow", function() {
-        it("incoming message allowed to flow to any type", function() {
+        it("with incoming public message allowed to flow to any type", function() {
             // var mPol = new Policy([ this.f_touser1_inTime_10_11, this.f_fromany]);
             var mPol = new Policy([ this.f_toany, this.f_fromany]);
 
-            var inputPortPol = new Policy([ { source: { type : '/any' } } ],
+            var inputPortPol = new Policy([ { to: false } ],
                                           { type : '/sensor', id : 'f68766b0.a1594', input : 0 });
 
             var sender = { type: this.anyone.type,
@@ -1221,9 +1251,10 @@ describe("Policy class must handle", function() {
 
             return expect(eval).to.eventually.eql({ grant: true, cond: false});
         });
-        it("with one public message policy and a time restricted input policy", function() {
+
+        it("with incoming public message and a time restricted input policy", function() {
             var mPol = new Policy([this.f_toany, this.f_fromany]);
-            var inputPortPol = new Policy([{ source: { type : '/any' },
+            var inputPortPol = new Policy([{ to: false,
                                              locks : [ { path : 'inTimePeriod', args : ["00:00" , "23:59"] } ] }],
                                           { type : '/sensor', id : 'f68766b0.a1594', input : 0 });
 
@@ -1237,20 +1268,80 @@ describe("Policy class must handle", function() {
                 expect(lubPol).to.eventually.eql({grant: true, cond: false})]);
         });
 
+        // TODO: Enhance tests, minimum specify some test one the message itself
+
+        it("with incoming message which can only flow to a specific sensor", function() {
+            var mPol_good = new Policy([{ to: true, locks: [ { lock: "hasId", args: [ 'f68766b0.a1594' ] } ] }, this.f_fromany ]);
+            var mPol_bad = new Policy([{ to: true, locks: [ { lock: "hasId", args: [ 'x' ] } ] }, this.f_fromany ]);
+
+            var inputPortPol = new Policy([{ to: false }],
+                                          { type : '/sensor', id : 'f68766b0.a1594', input : 0 });
+
+            var input = new Entity({ type : '/sensor', id : 'f68766b0.a1594', input : 0 });
+            var c = new Context({ type: this.anyone.type, data: this.anyone },
+                                { type: input.type, data: input });
+
+            var r1 = mPol_good.checkFlow(inputPortPol, Policy.Direction.INCOMING, c);
+            var r2 = mPol_bad.checkFlow(inputPortPol, Policy.Direction.INCOMING, c);
+
+            return Promise.all([
+                expect(r1).to.eventually.eql({grant: true, cond: false}),
+                expect(r2).to.eventually.eql({grant: false, cond: false, conflicts: [ Lock.createLock({ lock: "hasId", args: [ "x" ]}) ] })]);
+        });
+
+        it("with incoming message which can only flow to entities with a specific type and id", function() {
+            var mPol_good = new Policy([{ to: true, locks: [ { lock: "hasId", args: [ 'f68766b0.a1594' ] }, { lock: "hasType", args: [ '/sensor'] } ] }, this.f_fromany ]);
+            var mPol_bad1 = new Policy([{ to: true, locks: [ { lock: "hasId", args: [ 'f68766b0.a1594' ] }, { lock: "hasType", args: [ '/client'] } ] }, this.f_fromany ]);
+            var mPol_bad2 = new Policy([{ to: true, locks: [ { lock: "hasId", args: [ 'f68766b0.a159' ] }, { lock: "hasType", args: [ '/client'] } ] }, this.f_fromany ]);
+
+            var inputPortPol = new Policy([{ to: false }],
+                                          { type : '/sensor', id : 'f68766b0.a1594', input : 0 });
+
+            var input = new Entity({ type : '/sensor', id : 'f68766b0.a1594', input : 0 });
+            var c = new Context({ type: this.anyone.type, data: this.anyone },
+                                { type: input.type, data: input });
+
+            var r1 = mPol_good.checkFlow(inputPortPol, Policy.Direction.INCOMING, c);
+            var r2 = mPol_bad1.checkFlow(inputPortPol, Policy.Direction.INCOMING, c);
+            var r3 = mPol_bad2.checkFlow(inputPortPol, Policy.Direction.INCOMING, c);
+
+            return Promise.all([
+                expect(r1).to.eventually.eql({grant: true, cond: false}),
+                expect(r2).to.eventually.eql({grant: false, cond: false, conflicts: [ Lock.createLock({ lock: "hasType", args: [ "/client" ]}) ] }),
+
+                // TODO: check lubLock of Policy, lock seems to be elliminated erroneously
+                expect(r3).to.eventually.eql({grant: false, cond: false, conflicts: [ Lock.createLock({ lock: "hasId", args: [ "f68766b0.a159" ]}),
+                                                                                      Lock.createLock({ lock: "hasType", args: [ "/client" ]})] }) ]);
+        });
+
     });
 
     describe("le of Policy inside function when setting msg property", function() {
         it("checks le wit the two given functions", function() {
 
-            var thisPolicy =  new Policy({"entity":{"type":"/sensor","id":"66ab1cb3.39ab8c","output":0},"flows":[{"source":null,"target":{"type":"/user"},"locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},{"source":null,"target":{"type":"/any"},"locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},{"source":{"type":"/user"},"target":null,"locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},{"source":{"type":"/any"},"target":null,"locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]}]});
-            var varPolicy = new Policy({"entity":{"type":"/sensor","id":"66ab1cb3.39ab8c","output":0},"flows":[{"source":{"type":"/user"},"target":null,"locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},{"source":null,"target":{"type":"/user"},"locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},{"source":{"type":"/any"},"target":null,"locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},{"source":null,"target":{"type":"/any"},"locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]}]});
+            var thisPolicy =  new Policy({"entity":{"type":"/sensor","id":"66ab1cb3.39ab8c","output":0},"flows":[{to: true,"locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},{to: true,"locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},{to: false,"locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},{to: false,"locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]}]});
+            var varPolicy = new Policy(
+                {"entity":{"type":"/sensor","id":"66ab1cb3.39ab8c","output":0},
+                 "flows":[
+                     { to: false,"locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},
+                     {to: true,"locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},
+                     {to: false,"locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},
+                     {to: true,"locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]}]});
 
             var r = thisPolicy.le(varPolicy);
             expect(r).to.equal(true);
         });
 
         it("policy generation with two users", function() {
-            var pol = new Policy([{"source":{"type":"/user"},"target":null,"locks":[{"path":"hasId","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},{"source":{"type":"/any"},"target":null,"locks":[{"path":"actsFor","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},{"source":null,"target":{"type":"/user"},"locks":[{"path":"hasId","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},{"source":null,"target":{"type":"/any"},"locks":[{"path":"actsFor","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},{"source":{"type":"/user"},"target":null,"locks":[{"path":"hasId","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]},{"source":{"type":"/any"},"target":null,"locks":[{"path":"actsFor","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]},{"source":null,"target":{"type":"/user"},"locks":[{"path":"hasId","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]},{"source":null,"target":{"type":"/any"},"locks":[{"path":"actsFor","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]}], {"type":"/sensor","id":"144848004447043dfd1f633c541d087db898766ac13ae"});
+            var pol = new Policy([
+                {to: false,"locks":[{"path":"hasId","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},
+                {to: false,"locks":[{"path":"actsFor","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},
+                {to: true,"locks":[{"path":"hasId","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},
+                {to: true,"locks":[{"path":"actsFor","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},
+                {to: false,"locks":[{"path":"hasId","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]},
+                {to: false,"locks":[{"path":"actsFor","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]},
+                {to: true,"locks":[{"path":"hasId","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]},
+                {to: true,"locks":[{"path":"actsFor","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]}], {"type":"/sensor","id":"144848004447043dfd1f633c541d087db898766ac13ae"});
 
             var r = pol.flows.length;
             expect(r).to.equal(8);

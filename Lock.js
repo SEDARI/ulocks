@@ -14,12 +14,12 @@ function valid(o) {
     return ((o !== undefined) && (o !== null));
 }
 
-/** 
+/**
  * Constructs a new lock.
  * @class
  * @param {Object} lock JSON describing a lock
  */
-function Lock(lock) {  
+function Lock(lock) {
     if(!valid(lockConstructors)) {
         w.error("Locks have not been initialized yet!");
         throw new Error("Locks have not been initialized yet");
@@ -44,12 +44,12 @@ function Lock(lock) {
         } else {
             if(lock.path)
                 lock.lock = lock.path;
-            
+
             if(!valid(lockConstructors[lock.lock])) {
                 w.error("Lock '"+lock.lock+"' has not been registered! Cannot use this lock!");
                 throw new Error("Lock '"+lock.lock+"' has not been registered! Cannot use this lock!");
             }
-            
+
             if(lock.lock === undefined)
                 throw new Error("Error: Lock '"+lock+"' does not specify a path");
 
@@ -73,7 +73,7 @@ function Lock(lock) {
     }
 };
 
-/** 
+/**
  * Stores constructors of all locks registered with this module
  * using the static method [registerLock]{@link Lock#registerLock} (mostly called from within a lock)
  * @static
@@ -92,7 +92,7 @@ function readLocks(dir) {
         w.error("Unable to load Locks from directory '"+dir+"'");
         return Promise.reject(err);
     }
-    
+
     lockFiles.forEach(function(lockFile) {
         var filePath = path.join(dir, lockFile);
         var stats = fs.statSync(filePath);
@@ -131,7 +131,7 @@ function readLocks(dir) {
  * @return {Promise} The returned promise resolves if each lock was loaded successfully,
  * rejects otherwise.
  * @static
- */ 
+ */
 Lock.init = function(settings) {
     var baseDir = process.cwd();
 
@@ -140,13 +140,13 @@ Lock.init = function(settings) {
         return Promise.reject(new Error("Unable to initialize Locks. Invalid settings.locks property!"));
     }
 
-    // if settings.locks starts with path separator, it contains the absolute 
+    // if settings.locks starts with path separator, it contains the absolute
     // path to the directory from which the locks should be loaded
     if(settings.locks[0] !== path.sep)
         settings.locks = baseDir + path.sep + settings.locks;
 
-    w.info("Searching for locks at '"+settings.locks+"'"); 
-    
+    w.info("Searching for locks at '"+settings.locks+"'");
+
     return new Promise(function(resolve, reject) {
         readLocks(settings.locks).then(function(v) {
             w.info("All locks successfully loaded and registered.");
@@ -167,7 +167,7 @@ Lock.createLock = function(lock) {
 
     if(lock.path)
         lock.lock = lock.path;
-    
+
     if(!(lock instanceof Lock) && !lock.lock) {
         throw new Error("Lock: Cannot create a lock from other than a Lock!");
         return null;
@@ -190,13 +190,13 @@ Lock.openLock = function() {
 };
 
 /**
- * Registers a new lock, indicating the "type" of the lock (could also 
- * be called the name of the lock) and its constructor, called when a new 
- * lock of this type should be constructed, e.g. if it is contained in a 
+ * Registers a new lock, indicating the "type" of the lock (could also
+ * be called the name of the lock) and its constructor, called when a new
+ * lock of this type should be constructed, e.g. if it is contained in a
  * policy.
  *
  * @arg {string} type A unique name for the lock type to be registered
- * @arg {function} constructor The constructor to be called when a new lock 
+ * @arg {function} constructor The constructor to be called when a new lock
  * of this type is constructed
  * @throws Throws an error if type or constructor are invalid or if the lock
  * type has already been registered.
@@ -228,7 +228,7 @@ Lock.registerLock = function (type, constructor) {
  */
 Lock.prototype.neg = function() {
     this.not = !this.not;
-    
+
     return this;
 };
 
@@ -239,18 +239,18 @@ Lock.prototype.neg = function() {
  */
 Lock.prototype.toString = function() {
     var str = "[[ ";
-    
+
     if(this.not && this.not == true)
         str += "not ";
-    
+
     str += this.lock;
-    
+
     if(this.args !== undefined) {
         var l = this.args.length - 1;
-        
+
         if(l >= 0)
             str += "(";
-        
+
         this.args.forEach(function(e,i) {
             str += e;
             if(i < l)
@@ -260,20 +260,20 @@ Lock.prototype.toString = function() {
         });
     }
     str += " ]]";
-    
+
     return str;
 };
 
 /**
  * Checks whether two locks are equal.
  * @arg {Lock} lock Lock to compare with <code>this</code> lock
- * @returns {Boolean} <code>true</code> if both locks are equal, i.e. type, arguments, 
+ * @returns {Boolean} <code>true</code> if both locks are equal, i.e. type, arguments,
  * and negation are identical, <code>false</code> otherwise.
  */
 Lock.prototype.eq = function(lock) {
     if(!lock)
         return false;
-    
+
     if(!(this.lock === undefined && lock.lock === undefined)) {
         if(this.lock === undefined || lock.lock === undefined)
             return false;
@@ -282,7 +282,7 @@ Lock.prototype.eq = function(lock) {
                 return false;
         }
     }
-    
+
     if(!(this.not === undefined && lock.not === undefined)) {
         if(this.not === undefined || lock.not === undefined)
             return false;
@@ -290,7 +290,7 @@ Lock.prototype.eq = function(lock) {
             if(this.not != lock.not)
                 return false;
     }
-    
+
     if(!(this.args === undefined && lock.args === undefined)) {
         if(this.args === undefined || lock.args === undefined)
             return false;
@@ -315,7 +315,7 @@ Lock.prototype.eq = function(lock) {
  * Must be implemented by the corresponding lock class.
  * @arg {Context} lockContext The {@link Context} in which the lock is evaluated
  * @arg {Scope} scope ...
- * @returns {Promise.<Boolean>} Promise resolves to <code>true</code> if the lock is open in the provided 
+ * @returns {Promise.<Boolean>} Promise resolves to <code>true</code> if the lock is open in the provided
  * <code>lockContext</code>, to <code>false</code> if it is closed in the context, rejects otherwise.
  * @abstract
  */

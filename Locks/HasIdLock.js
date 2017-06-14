@@ -1,3 +1,5 @@
+// TODO: Review lub and le operations
+
 var w = require('winston');
 w.level = process.env.LOG_LEVEL;
 
@@ -26,76 +28,25 @@ module.exports = function(Lock) {
     HasIdLock.prototype.copy = function() {
         var c = new HasIdLock(this);
         return c;
-    }
-
-    HasIdLock.prototype.handleUser = function(subject, isStatic) {
-        if(isStatic) {
-            throw new Error("handleUser for hasId lock is not supported in static analysis yet");
-        } else {
-            if((subject.type == '/user' && subject.data.id == this.args[0] && !this.not) ||
-               ((subject.type != '/user' || subject.data.id != this.args[0]) && this.not))
-                return { open: true, cond: false };
-            else
-                return { open: false, cond: false, lock : this };
-        }
-    };
-
-    HasIdLock.prototype.handleSensor = function(subject, isStatic) {
-        if(isStatic) {
-            throw new Error("handleSO for hasId lock is not supported in static analysis yet");
-        } else {
-            if((subject.type == 'sensor' && subject.data.id == this.args[0] && !this.not) ||
-               ((subject.type != 'sensor' || subject.data.id != this.args[0]) && this.not))
-                return { open: true, cond: false };
-            else
-                return { open: false, cond: false, lock : this };
-        }
-    };
-
-    HasIdLock.prototype.handleAny = function(subject, isStatic) {
-        if(isStatic) {
-            throw new Error("HasIdLock.prototype.handleAny is not supported in static analysis, yet.");
-        } else {
-            var r = this.handleSensor(subject, isStatic);
-            if(this.not) {
-                if(!r.result)
-                    return { open: false, cond: false, lock : this };
-            } else
-                if(r.result)
-                    return r;
-
-            r = this.handleUser(subject, isStatic);
-            if(this.not) {
-                if(!r.result)
-                    return { open: false, cond: false, lock : this };
-            } else
-                if(r.result)
-                    return r;
-
-            if(this.not)
-                return { open: true, cond: false };
-            else
-                return { open: false, cond: false, lock : this };
-        }
     };
 
     HasIdLock.prototype.isOpen = function(context, scope) {
-        if(context) {
-            switch(scope) {
-            case "/any" :
-                return this.handleAny(context.entity, context.isStatic);
-                break;
-            case "/user" :
-                return this.handleUser(context.entity, context.isStatic);
-                break;
-            case "/sensor" :
-                return this.handleSensor(context.entity, context.isStatic);
-                break;
-            default :
-                throw new Error("Unknown scope '"+scope+"' for hasId lock evaluation.");
-            }
-        } else
-            throw new Error("HasIdLock: Requires user, sensor, sender or receiver context to evaluate lock. Did you set context type?");
+	w.debug("HasIdLock.prototype.isOpen");
+	if(valid(context)) {
+	    if(!context.isStatic) {
+		if(valid(context.entity) && valid(context.entity.data) && valid(context.entity.data.id)) {
+		    if(context.entity.data.id == this.args[0])
+			return Promise.resolve({open: true, cond: false});
+		    else
+			return Promise.resolve({open: false, cond: false, lock: this});
+		} else {
+		    return Promise.reject(new Error("HasIdLock.prototype.isOpen: Entity in context does not specify the property 'id'!" + JSON.stringify(context,null,2)));
+		}
+	    } else {
+		return Promise.reject(new Error("HasIdLock.prototype.isOpen not implemented for static analysis, yet"));
+	    }
+	} else
+	    return Promise.reject(new Error("HasIdLock.prototype.isOpen: Context is invalid"));
     };
 
     HasIdLock.prototype.lub = function(lock) {
@@ -107,5 +58,9 @@ module.exports = function(Lock) {
             else
                 return null;
         }
+    }
+
+    function valid(o) {
+	return (o !== undefined && o !== null);
     }
 }

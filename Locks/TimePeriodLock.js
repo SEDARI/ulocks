@@ -83,10 +83,10 @@ module.exports = function(Lock) {
     TimePeriodLock.prototype.isOpen = function(context, scope) {
         var self = this;
         return new Promise(function(resolve, reject) {
-            if(!context)
+            if(context === undefined || context === null)
                 reject(new Error("No valid context available during evaluation of '"+self.lock+"' lock"));
-            else
-                if(!context.isStatic) {
+
+            if(!context.isStatic) {
                     var currentDate = new Date();
                     var hours = currentDate.getHours();
                     var mins = currentDate.getMinutes();
@@ -100,12 +100,12 @@ module.exports = function(Lock) {
                         self.args[1] >= currentTime && !self.not) ||
                        ((self.args[0] > currentTime ||
                          self.args[1] < currentTime) && self.not)) {
-                        return resolve({ open: true, cond: false, lock: self });
-                    }
-                    else
-                        return resolve({ open: false, cond: false, lock: self });
+                        resolve({ open: true, cond: false });
+                    } else {
+                        resolve({ open: false, cond: false, lock: self });
+		    }
                 } else {
-                    return resolve({ open: true, cond: true, lock: self });
+                    resolve({ open: true, cond: true, lock: self });
                 }
         });
     }

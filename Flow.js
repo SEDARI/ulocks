@@ -10,6 +10,8 @@ var Lock = require("./Lock.js");
 var Entity = require("./Entity.js");
 var Action = require("./Action.js");
 
+var Promise = require('bluebird');
+
 function valid(o) {
     return ((o !== undefined) && (o !== null));
 }
@@ -20,33 +22,19 @@ function Flow(flow) {
         throw new Error("Flow: Error: Cannot construct flow from undefined flow.");
     }
 
-    // either source or target needs to be defined
-    if((!flow.hasOwnProperty('source') || !valid(flow.source)) &&
-       (!flow.hasOwnProperty('target') || !valid(flow.target))) {
-        throw new Error("Flow '"+JSON.stringify(flow)+"' does not specify source or target.");
-    }
-
-    // source or target cannot be defined at the same time
-    if(flow.hasOwnProperty('source') && valid(flow.source) &&
-       flow.hasOwnProperty('target') && valid(flow.target)) {
-        throw new Error("Flow specifies source and target at the same time.");
-    }
+    if(!flow.hasOwnProperty('to'))
+        throw new Error("Flow '"+JSON.stringify(flow)+"' does not specify its direction.");
+    else
+        this.to = flow.to;
 
     if(flow.hasOwnProperty('op') && valid(flow.op))
         this.op = flow.op;
 
     // either source or target is properly defined
-    if(valid(flow.source)) {
-        this.source = new Entity(flow.source);
-        // ensure target is not defined
-        delete this.target;
-        if(!valid(this.op))
+    if(!valid(this.op)) {
+        if(this.to === false)
             this.op = Flow.OpTypes.Write;
-    } else {
-        this.target = new Entity(flow.target);
-        // ensure source is not defined
-        delete this.source;
-        if(!valid(this.op))
+        else
             this.op = Flow.OpTypes.Read;
     }
 
@@ -115,11 +103,11 @@ Flow.OpTypes = {
 };
 
 Flow.prototype.hasSrc = function() {
-    return this.hasOwnProperty('source');
+    return !this.to;
 };
 
 Flow.prototype.hasTrg = function() {
-    return this.hasOwnProperty('target');
+    return this.to;
 };
 
 // TODO: also compare operations and actions!!
@@ -133,10 +121,8 @@ Flow.prototype.eq = function(otherFlow, conflicts) {
             matched = [];
     }
 
-    if(this.hasOwnProperty('target') && !this.target.eq(otherFlow.target) ||
-       this.hasOwnProperty('source') && !this.source.eq(otherFlow.source)) {
+    if(!valid(this.to) || !valid(otherFlow.to) || this.to !== otherFlow.to)
         return false;
-    }
 
     var thisFlow = this;
 
@@ -221,25 +207,8 @@ Flow.prototype.le = function(otherFlow, _showConflicts) {
     // incompatible flows to be compared
     // TODO: decide whether to better throw an error here
     // TODO: better compare operations!
-    if((valid(this.target) && valid(otherFlow.source)) ||
-       (valid(this.source) && valid(otherFlow.target)))
+    if(!valid(this.to) || !valid(otherFlow.to) || this.to !== otherFlow.to)
         return false;
-
-    // TODO: should not happen
-    if(!valid(this.source) && !valid(this.target))
-        return false;
-
-    // TODO: Clarify which intention that has!
-    if(!otherFlow.source && !otherFlow.target)
-        return true;
-
-    if(this.target) {
-        if(!this.target.dominates(otherFlow.target))
-            return false;
-    } else {
-        if(!this.source.dominates(otherFlow.source))
-            return false;
-    }
 
     var thisFlow = this;
 
@@ -329,7 +298,6 @@ Flow.prototype.getClosedLocks = function(context, scope, showConflicts) {
     var f = this;
 
     return new Promise(function(resolve, reject) {
-        var conflicts = [];
         var allopen = true;
         var cond = false;
         var resLocks = [];
@@ -354,7 +322,6 @@ Flow.prototype.getClosedLocks = function(context, scope, showConflicts) {
 
                 if(s === undefined) {
                     w.debug("Flow.prototype.getClosedLocks: lock state of '"+lock+"' not cached => get current value");
-
                     promises.push(lock.isOpen(context, scope));
                 } else {
                     promises.push(Promise.resolve({ open : s, cond : false, lock : lock }));
@@ -367,8 +334,9 @@ Flow.prototype.getClosedLocks = function(context, scope, showConflicts) {
             }
 
             Promise.all(promises).then(function(lockStates) {
+                w.debug("all resolved/rejected ", lockStates);
+                var conflicts = [];
                 for(var i in lockStates) {
-
                     // if(context && s && s.cond == false)
                     // context.addLockState(lock, context.subject, s.result);
 
@@ -382,21 +350,10 @@ Flow.prototype.getClosedLocks = function(context, scope, showConflicts) {
                     }
                 }
 
-                // TODO: Check whether this simplification is required or whether
-                // it just induces extra overhead
-                if(conflicts.length) {
-                    var dummyFlow = new Flow({ target : { type : Entity.MinType } });
-                    for(var cl in conflicts) {
-                        dummyFlow.locks = dummyFlow.lubLock(conflicts[cl]);
-                    }
-                    resLocks = dummyFlow.locks;
-                }
-
                 var result = { open : allopen, cond : cond };
 
-                if(resLocks && resLocks.length)
-                    result.locks = resLocks;
-
+                if(conflicts.length > 0)
+                    result.locks = conflicts;
                 resolve(result);
             }, function(error) {
                 w.error("Failed to evaluate lock in flow '"+f+"'!");
@@ -419,6 +376,8 @@ Flow.prototype.lubLock = function(factor) {
 
     var lock = Lock.createLock(factor);
 
+
+
     if(this.locks && this.locks[lock.lock]) {
         var toMultiply = this.locks[lock.lock];
 
@@ -427,9 +386,9 @@ Flow.prototype.lubLock = function(factor) {
             if(lub) {
                 newLocks.push(lub);
                 merged = true;
-            } else {
+            } /*else {
                 newLocks.push(Lock.createLock(toMultiply[i]));
-            }
+            }*/
         }
     }
 
@@ -439,44 +398,57 @@ Flow.prototype.lubLock = function(factor) {
     return newLocks;
 };
 
+Flow.prototype.addLock = function(lock) {
+    var type = lock.lock;
+
+    if(!this.hasOwnProperty("locks"))
+        this.locks = {};
+
+    if(!this.locks.hasOwnProperty(type))
+        this.locks[type] = [];
+
+    var locks = this.locks[type];
+    var found = false;
+    for(var i in locks) {
+        var l = locks[i];
+        if(l.eq(lock)) {
+            found = true;
+        } else {
+            if(l.lub(lock) === null)
+                closed = true;
+        }
+    }
+
+    // TODO: insert closed lock and delete all other -> flow is always forbidden
+    // if(closed)
+
+    if(!found)
+        this.locks[type].push(lock);
+}
+
 Flow.prototype.lub = function(flow) {
     w.debug(">>> Flow.prototype.lub(\n\t"+this+",\n\t"+flow+")");
 
     // flows are incompatible and there is
     // no upper bound on them; we would need
     // a new policy for this
-    if(this.source && !flow.source ||
-       this.target && !flow.target) {
+    if(!valid(this.to) || !valid(flow.to) || this.to !== flow.to) {
         // console.log("Error: try to lub source and target flow");
         return null;
     } else {
         var newFlow = new Flow(this);
 
-        if(this.target) {
-            if(this.target.dominates(flow.target))
-                newFlow.target = new Entity(flow.target);
-            else if(flow.target.dominates(this.target))
-                newFlow.target = new Entity(this.target);
-            else
-                return null;
-        } else if(this.source) {
-            if(this.source.dominates(flow.source))
-                newFlow.source = new Entity(flow.source);
-            else if(flow.source.dominates(this.source))
-                newFlow.source = new Entity(this.source);
-            else
-                return null;
-        }
-
         for(var type in flow.locks) {
             for(var i in flow.locks[type]) {
                 var r = newFlow.lubLock((flow.locks[type])[i]);
+
+                if(!newFlow.hasOwnProperty("locks"))
+                    newFlow.locks = {};
+                newFlow.locks[type] = [];
+
                 if(r.length > 0) {
-                    if(!newFlow.hasOwnProperty("locks"))
-                        newFlow.locks = {};
-                    newFlow.locks[type] = [];
                     for(var k in r) {
-                        newFlow.locks[type].push(r[k]);
+                        newFlow.addLock(r[k]);
                     }
                 }
             }
@@ -490,7 +462,7 @@ Flow.prototype.toString = function() {
     var str = "";
     var l = this.hasOwnProperty('locks') ? this.locks.length : 0;
 
-    if(this.hasOwnProperty('target')) {
+    if(this.to) {
         if(this.hasOwnProperty('locks')) {
             var c = 0;
             for(var t  in this.locks) {
@@ -504,7 +476,7 @@ Flow.prototype.toString = function() {
         } else
             str += "always";
 
-        str = "{"+str+" ==> " + this.target;
+        str = "{"+str+" ==> TARGET";
 
         if(this.hasOwnProperty('actions')) {
             var al = this.actions.length
@@ -520,7 +492,7 @@ Flow.prototype.toString = function() {
         }
         str += "}";
     } else {
-        str = "{" + this.source + " ==> ";
+        str = "{ SOURCE ==> ";
         if(this.hasOwnProperty('locks')) {
             var c = 0;
             for(var t  in this.locks) {

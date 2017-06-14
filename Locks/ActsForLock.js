@@ -146,12 +146,17 @@ module.exports = function(Lock) {
             case "/sensor":
                 return this.handleSensor(context.entity, context.isStatic);
             case "/user":
-                return Promise.reject(new Error("The entity lock actsFor cannot be applied to a user."));
+                w.debug("The entity lock actsFor cannot be applied to a user.");
+		break;
             case "/msg":
-                return Promise.reject(new Error("The entity lock actsFor cannot be applied to a message."));
+                w.debug("The entity lock actsFor cannot be applied to a message.");
+		break;
             default:
-                return Promise.reject(new Error("Unknown context for actsFor lock evaluation."));
+                w.debug("Unknown context for actsFor lock evaluation.");
+		break;
             }
+
+	    return Promise.resolve({open: false, cond: false});
         } else
             return Promise.reject(new Error("ActsForLock: Requires user, sender or receiver context to evaluate lock. Did you set context type?"));
     };
