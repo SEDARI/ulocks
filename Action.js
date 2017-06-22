@@ -7,6 +7,10 @@ w.level = process.env.LOG_LEVEL;
 
 var Entity = require("./Entity.js");
 
+function valid(o) {
+    return ((o !== undefined) && (o !== null));
+}
+
 /**
  * Constructs a new action.
  * @class
@@ -73,10 +77,10 @@ function readActions(dir) {
                     try {
                         var newAction = require(filePath);
                         newAction(Action);
-                        w.log('info', "Success: Action in '"+filePath+"' is now registered.");
+                        w.info("Success: Action in '"+filePath+"' is now registered.");
                         resolve();
                     } catch(err) {
-                        w.log('error', "Unable to load action in '"+filePath+"'!");
+                        w.error("Unable to load action in '"+filePath+"'!");
                         reject(err);
                     }
                 }));
@@ -97,6 +101,11 @@ function readActions(dir) {
  * @static
  */
 Action.init = function(settings) {
+    if(valid(actionConstructors) && Object.keys(actionConstructors).length > 0) {
+        w.warn("Action system has already been initialized. Skip this initialization.");
+        return Promise.resolve();
+    }
+    
     var baseDir = process.cwd();
 
     if(!settings) {
