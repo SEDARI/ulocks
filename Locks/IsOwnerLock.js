@@ -1,3 +1,6 @@
+var w = require('winston');
+w.level = process.env.LOG_LEVEL;
+
 module.exports = function(Lock) {
     "use strict";
 
@@ -15,80 +18,28 @@ module.exports = function(Lock) {
         return c;
     }
 
-    IsOwnerLock.prototype.handleUser = function(subject, object, isStatic) {
-        if(isStatic) {
-            throw new Error("handleUser for hasId lock is not supported in static analysis yet");
-        } else {
-            if((subject.type == '/user' && object.data.hasOwnProperty('owner') &&
-                object.data.owner == subject.data.id && !this.not) ||
-               ((subject.type != '/user' || !object.data.hasOwnProperty('owner') ||
-                 object.data.owner != subject.data.id) && this.not))
-                return { result : true, conditional : false };
-            else
-                return { result : false, conditional : false, lock : this };
-        }
-    };
-
-    IsOwnerLock.prototype.handleSensor = function(subject, object, isStatic) {
-        if(isStatic) {
-            throw new Error("handleSO for hasId lock is not supported in static analysis yet");
-        } else {
-            if((subject.type == '/sensor' && object.data.hasOwnProperty('owner') &&
-                object.data.owner == subject.data.id && !this.not) ||
-               ((subject.type != '/sensor' || !object.data.hasOwnProperty('owner') ||
-                 object.data.owner != subject.data.id) && this.not))
-                return { result : true, conditional : false };
-            else
-                return { result : false, conditional : false, lock : this };
-        }
-    };
-
-    IsOwnerLock.prototype.handleAny = function(subject, object, isStatic) {
-        if(isStatic) {
-            throw new Error("IsOwnerLock.prototype.handleAny is not supported in static analysis, yet.");
-        } else {
-            var r = this.handleSensor(subject, object, isStatic);
-            if(this.not) {
-                if(!r.result)
-                    return { result : false, conditional : false, lock : this };
-            } else
-                if(r.result)
-                    return r;
-
-            r = this.handleUser(subject, object, isStatic);
-            if(this.not) {
-                if(!r.result)
-                    return { result : false, conditional : false, lock : this };
-            } else {
-                if(r.result)
-                    return r;
-            }
-            
-            if(this.not)
-                return { result : true, conditional : false };
-            else
-                return { result : false, conditional : false, lock : this };
-        }
-    };
-
     IsOwnerLock.prototype.isOpen = function(context, scope) {
-	    if(context) {
-            switch(scope) {
-            case "/any" :
-                return this.handleAny(context.subject, context.object, context.isStatic);
-                break;
-            case "/user" :
-                return this.handleUser(context.subject, context.object, context.isStatic);
-                break;
-            case "/sensor" :
-                return this.handleSensor(context.subject, context.object, context.isStatic);
-                break;
-            default :
-                throw new Error("Unknown scope '"+scope+"' for isOwner lock evaluation.");
-            }
-        } else {
-            throw new Error("IsOwnerLock: Requires sender or receiver context to evaluate lock. Did you set context type?");
-        }
+	w.debug("IsOwnerLock.prototype.isOpen");
+	if(valid(context)) {
+	    if(!context.isStatic) {
+		if(valid(context.entity) && valid(context.entity.data) && valid(context.entity.data.id)) {
+                    var other = context.getOtherEntity();
+                    if(valid(other) && valid(other.data) && valid(other.data.owner)) {
+		        if(context.entity.data.id === other.data.owner)
+			    return Promise.resolve({open: true, cond: false});
+		        else
+			    return Promise.resolve({open: false, cond: false, lock: this});
+                    } else {
+                        return Promise.reject(new Error("IsOwnerLock.prototype.isOpen cannot evaluate opposing entities in message context or context is invalid!"));
+                    }
+		} else {
+                    return Promise.reject(new Error("IsOwnerLock.prototype.isOpen current context is invalid!"));
+                }
+	    } else {
+		return Promise.reject(new Error("IsOwnerLock.prototype.isOpen not implemented for static analysis, yet"));
+	    }
+	} else
+	    return Promise.reject(new Error("IsOwnerLock.prototype.isOpen: Context is invalid"));
     };
 
     IsOwnerLock.prototype.lub = function(lock) {
@@ -101,4 +52,8 @@ module.exports = function(Lock) {
                 return null;
         }
     };
+
+    function valid(o) {
+	return o !== undefined && o !== null;
+    }
 }
