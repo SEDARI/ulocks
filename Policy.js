@@ -398,7 +398,10 @@ Policy.prototype.checkWrite = function(writerPolicy, context) {
 
     return new Promise(function(resolve, reject) {
         var flowPromises = [];
-        w.debug("============ checkWriteAccess ============: ", self.flows);
+        w.debug("============ checkWriteAccess ============: ");
+        w.debug("Context: " + JSON.stringify(context, null, 2));
+        w.debug("WriterPolicy: " + writerPolicy);
+        w.debug("ObjectPolicy: " + self);
 
         // check whether the writer with writerPolicy can write to *self*
         for(var f in self.flows) {
@@ -412,6 +415,8 @@ Policy.prototype.checkWrite = function(writerPolicy, context) {
 
         Promise.all(flowPromises).then(function(results) {
             var evalResult = processConflicts(results);
+            // TODO: Backwards compatibility
+            evalResult.result = evalResult.grant;
             resolve(evalResult);
         }, function(error) {
             reject(error);
@@ -442,6 +447,8 @@ Policy.prototype.checkRead = function(readerPolicy, context) {
 
         Promise.all(flowPromises).then(function(results) {
             var finalResult = processConflicts(results);
+            // TODO: Backwards compatibility
+            finalResult.result = finalResult.grant;
             resolve(finalResult);
         }, function(error) {
             reject(error);
