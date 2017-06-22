@@ -1,0 +1,10 @@
+- For a lock system, it is required to define type for each argument
+    + short description of type and identifier
+    
+- Make locks more descriptive to support the policy definition dialog
+  * define scope of the lock (to which entity can it be applied)
+  * define arity of lock
+  * short description of lock
+  * provide the list of argument types if there are any
+
+- DO THE SAME FOR ACTIONS
