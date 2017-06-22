@@ -167,6 +167,18 @@ Context.prototype.setType = function(type) {
     }
 };
 
+Context.prototype.getOtherEntity = function() {
+    switch(this.type) {
+    case Context.Types.normal:
+    case Context.Types.sender:
+        return this.receiver;
+    case Context.Types.receiver:
+        return this.sender;
+    case Context.Types.msg:
+        return null;
+    }
+}
+
 /** Puts the context into normal view  */
 Context.prototype.setNormalContext = function() {
     this.entity = this.sender;
