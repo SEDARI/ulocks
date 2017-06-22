@@ -104,7 +104,7 @@ function readLocks(dir) {
                         newLock(Lock);
                         resolve();
                     } catch(err) {
-                        w.error("Unable to load lock in '"+filePath+"'!");
+                        w.error("Unable to load lock in '"+filePath+"'! Reason: " + err);
                         reject(err);
                     }
                 }));
@@ -133,6 +133,11 @@ function readLocks(dir) {
  * @static
  */
 Lock.init = function(settings) {
+    if(valid(lockConstructors) && Object.keys(lockConstructors).length > 0) {
+        w.warn("Lock system has already been initialized. Skip this initialization.");
+        return Promise.resolve();
+    }
+    
     var baseDir = process.cwd();
 
     if(!settings.locks) {
@@ -207,7 +212,7 @@ Lock.registerLock = function (type, constructor) {
         lockConstructors = {};
 
     if(lockConstructors[type]) {
-        throw new Error(type+" is already a registered lock.");
+        w.warn("Did not register lock '"+type+"' again. It is already a registered lock.");
         return;
     }
 
@@ -216,7 +221,7 @@ Lock.registerLock = function (type, constructor) {
         return;
     }
 
-    w.log('info', "Success: Lock '"+type+"' is now registered.");
+    w.info("Success: Lock '"+type+"' is now registered.");
 
     lockConstructors[type] = constructor;
 };
