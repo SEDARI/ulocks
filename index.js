@@ -26,7 +26,7 @@ var init = function(settings) {
         
         if(initialized) {
             w.info("ULocks have already been initialized. Ignore.");
-            return resolve();
+            return resolve(false);
         }
 
         if(!settings)
@@ -38,10 +38,9 @@ var init = function(settings) {
         toInit.push(Lock.init(settings));
         toInit.push(Action.init(settings));
 
-
         Promise.all(toInit).then(function() {
             w.info("ULocks initialized successfully.");
-            resolve();
+            resolve(true);
         }, function(e) {
             w.error("ULocks initialization failed.");
             reject(e);
