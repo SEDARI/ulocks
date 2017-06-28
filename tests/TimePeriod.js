@@ -6,6 +6,13 @@ var Lock = ULocks.Lock;
 
 var settings = require("./settings.js");
 
+function lz(h) {
+    if(h < 10)
+        return "0" + h;
+    else
+        return "" + h;
+}
+
 describe("TimePeriodLock", function() {    
     describe("le comparison", function() {
         it("l2 contained in l1", function() {
@@ -118,7 +125,7 @@ describe("TimePeriodLock", function() {
             var currentDate = new Date();
             var hours = currentDate.getHours();
 
-            var l = Lock.createLock({ lock: "inTimePeriod", args: [ (hours-1)+":00", (hours+1)+":00" ] });
+            var l = Lock.createLock({ lock: "inTimePeriod", args: [ lz(hours-1)+":00", lz(hours+1)+":00" ] });
             l.isOpen().then(function(state) {
                 expect(state.open).to.equal(true);
             }, function(e) {
@@ -130,7 +137,7 @@ describe("TimePeriodLock", function() {
             var currentDate = new Date();
             var hours = currentDate.getHours();
 
-            var l = Lock.createLock({ lock: "inTimePeriod", args: [ (hours-1)+":00", (hours+1)+":00" ], not: true });
+            var l = Lock.createLock({ lock: "inTimePeriod", args: [ lz(hours-1)+":00", lz(hours+1)+":00" ], not: true });
             l.isOpen().then(function(state) {
                 expect(state.open).to.equal(false);
             }, function(e) {
@@ -142,7 +149,7 @@ describe("TimePeriodLock", function() {
             var currentDate = new Date();
             var hours = currentDate.getHours();
 
-            var l = Lock.createLock({ lock: "inTimePeriod", args: [ (hours-2)+":00", (hours-1)+":00" ] });
+            var l = Lock.createLock({ lock: "inTimePeriod", args: [ lz(hours-2)+":00", lz(hours-1)+":00" ] });
             l.isOpen().then(function(state) {
                 expect(state.open).to.equal(false);
             }, function(e) {
@@ -154,7 +161,7 @@ describe("TimePeriodLock", function() {
             var currentDate = new Date();
             var hours = currentDate.getHours();
 
-            var l = Lock.createLock({ lock: "inTimePeriod", args: [ (hours-2)+":00", (hours-1)+":00" ], not: true });
+            var l = Lock.createLock({ lock: "inTimePeriod", args: [ lz(hours-2)+":00", lz(hours-1)+":00" ], not: true });
             l.isOpen().then(function(state) {
                 expect(state.open).to.equal(false);
             }, function(e) {

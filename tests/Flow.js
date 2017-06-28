@@ -21,7 +21,14 @@ var settings = require("./settings.js");
             console.log("Something went wrong during initialization of the ulocks policies. Cannot run tests.");
             console.log(e);
         }
-    )});*/
+        )});*/
+
+function lz(h) {
+    if(h < 10)
+        return "0" + h;
+    else
+        return "" + h;
+}
 
 describe("Flow class", function() {
     describe("constructor", function() {
@@ -433,7 +440,7 @@ describe("Flow class", function() {
             var hours = currentDate.getHours();
             var dummyContext = { isStatic: false };
 
-            var f = new Flow({ to: true, locks: [ { lock: "inTimePeriod", args: [ (hours-1)+":00", (hours+1)+":00" ] } ] } );
+            var f = new Flow({ to: true, locks: [ { lock: "inTimePeriod", args: [ lz(hours-1) +":00", lz(hours+1)+":00" ] } ] } );
 
             var r = f.getClosedLocks(dummyContext);
 
@@ -445,9 +452,9 @@ describe("Flow class", function() {
             var hours = currentDate.getHours();
             var dummyContext = { isStatic: false };
 
-            var l = Lock.createLock({ lock: "inTimePeriod", args: [ (hours-2)+":00", (hours-1)+":00" ] });
+            var l = Lock.createLock({ lock: "inTimePeriod", args: [ lz(hours-2)+":00", lz(hours-1)+":00" ] });
 
-            var f = new Flow({ to: true, locks: [ { lock: "inTimePeriod", args: [ (hours-2)+":00", (hours-1)+":00" ] } ] } );
+            var f = new Flow({ to: true, locks: [ { lock: "inTimePeriod", args: [ lz(hours-2)+":00", lz(hours-1)+":00" ] } ] } );
 
             var r = f.getClosedLocks(dummyContext);
 

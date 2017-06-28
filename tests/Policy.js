@@ -892,14 +892,14 @@ describe("Policy class must handle", function() {
             var conflictLock2 = Lock.createLock({lock: "hasId", args: [ "2" ]});
 
             return Promise.all([
-                expect(r1).to.eventually.eql({grant: true, cond: false}),
+                expect(r1).to.eventually.eql({grant: true, cond: false, result: true}),
                 expect(r2).to.eventually.eql({grant: false, cond: false,
-                                              conflicts:[conflictLock1]}),
+                                              conflicts:[conflictLock1], result: false}),
                 expect(r3).to.eventually.eql({grant: false, cond: false,
-                                              conflicts: [conflictLock2]}),
-                expect(r4).to.eventually.eql({grant: true, cond: false}),
-                expect(r5).to.eventually.eql({grant: true, cond: false}),
-                expect(r6).to.eventually.eql({grant: true, cond: false})]);
+                                              conflicts: [conflictLock2], result: false}),
+                expect(r4).to.eventually.eql({grant: true, cond: false, result: true}),
+                expect(r5).to.eventually.eql({grant: true, cond: false, result: true}),
+                expect(r6).to.eventually.eql({grant: true, cond: false, result: true})]);
         });
 
         it("allowing read access for specific user only", function() {
@@ -935,14 +935,14 @@ describe("Policy class must handle", function() {
             var conflictLock2 = Lock.createLock({lock: "hasId", args: [ "2" ]});
 
             return Promise.all([
-                expect(r1).to.eventually.eql({grant: true, cond: false}),
+                expect(r1).to.eventually.eql({grant: true, cond: false, result: true}),
                 expect(r2).to.eventually.eql({grant: false, cond: false,
-                                              conflicts: [ conflictLock1 ] } ),
+                                              conflicts: [ conflictLock1 ], result: false } ),
                 expect(r3).to.eventually.eql({grant: false, cond: false,
-                                              conflicts: [ conflictLock2 ] } ),
-                expect(r4).to.eventually.eql({grant: true, cond: false}),
-                expect(r5).to.eventually.eql({grant: true, cond: false}),
-                expect(r6).to.eventually.eql({grant: true, cond: false})]);
+                                              conflicts: [ conflictLock2 ], result: false } ),
+                expect(r4).to.eventually.eql({grant: true, cond: false, result: true}),
+                expect(r5).to.eventually.eql({grant: true, cond: false, result: true}),
+                expect(r6).to.eventually.eql({grant: true, cond: false, result: true})]);
         });
 
         it("allowing read access from specific port only", function() {
@@ -979,14 +979,14 @@ describe("Policy class must handle", function() {
             var conflictLock2 = Lock.createLock({lock: "hasId", args: [ "1in2" ]});
 
             return Promise.all([
-                expect(r1).to.eventually.eql({grant: true, cond: false}),
+                expect(r1).to.eventually.eql({grant: true, cond: false, result: true}),
                 expect(r2).to.eventually.eql({grant: false, cond: false,
-                                              conflicts: [ conflictLock2 ] }),
-                expect(r3).to.eventually.eql({grant: true, cond: false}),
-                expect(r4).to.eventually.eql({grant: true, cond: false}),
-                expect(r5).to.eventually.eql({grant: true, cond: false}),
+                                              conflicts: [ conflictLock2 ], result: false }),
+                expect(r3).to.eventually.eql({grant: true, cond: false, result: true}),
+                expect(r4).to.eventually.eql({grant: true, cond: false, result: true}),
+                expect(r5).to.eventually.eql({grant: true, cond: false, result: true}),
                 expect(r6).to.eventually.eql({grant: false, cond: false,
-                                              conflicts: [ conflictLock1, conflictLock2 ] } ) ] );
+                                              conflicts: [ conflictLock1, conflictLock2 ], result: false } ) ] );
         });
 
         it("allowing read access from specific port only", function() {
@@ -1023,12 +1023,12 @@ describe("Policy class must handle", function() {
             var conflictLock2 = Lock.createLock({lock: "hasId", args: [ "1out2" ]});
 
             return Promise.all([
-                expect(r1).to.eventually.eql({ grant: true, cond: false }),
-                expect(r2).to.eventually.eql({ grant: false, cond: false, conflicts: [ conflictLock1 ] }),
-                expect(r3).to.eventually.eql({ grant: true, cond: false }),
-                expect(r4).to.eventually.eql({ grant: false, cond: false, conflicts: [ conflictLock2 ] }),
-                expect(r5).to.eventually.eql({ grant: true, cond: false }),
-                expect(r6).to.eventually.eql({ grant: true, cond: false })]);
+                expect(r1).to.eventually.eql({ grant: true, cond: false, result: true }),
+                expect(r2).to.eventually.eql({ grant: false, cond: false, conflicts: [ conflictLock1 ], result: false }),
+                expect(r3).to.eventually.eql({ grant: true, cond: false, result: true }),
+                expect(r4).to.eventually.eql({ grant: false, cond: false, conflicts: [ conflictLock2 ], result: false }),
+                expect(r5).to.eventually.eql({ grant: true, cond: false, result: true }),
+                expect(r6).to.eventually.eql({ grant: true, cond: false, result: true })]);
         });
 
         it("allowing write access from anyone without conditions", function() {
@@ -1082,8 +1082,8 @@ describe("Policy class must handle", function() {
             var r63 = p3.checkAccess(sPol6, Policy.Operation.WRITE, c6);
             var r73 = p3.checkAccess(sPol7, Policy.Operation.WRITE, c7);
 
-            var grant = { grant: true, cond: false };
-            var deny = {grant: false, cond: false, conflicts: [] };
+            var grant = { grant: true, cond: false, result: true };
+            var deny = {grant: false, cond: false, conflicts: [], result: false };
 
             return Promise.all([
                 // no conflicts as p1 does not have any flows generating conflicts
@@ -1203,8 +1203,8 @@ describe("Policy class must handle", function() {
             var r63 = p3.checkAccess(sPol6, Policy.Operation.READ, c6);
             var r73 = p3.checkAccess(sPol7, Policy.Operation.READ, c7);
 
-            var grant = { grant: true, cond: false };
-            var deny = {grant: false, cond: false, conflicts: [] };
+            var grant = { grant: true, cond: false, result: true };
+            var deny = {grant: false, cond: false, conflicts: [], result: false };
 
             return Promise.all([
                 expect(r11).to.eventually.eql(grant),
