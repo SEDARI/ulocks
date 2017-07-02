@@ -218,6 +218,8 @@ Policy.prototype.add = function(toAdd) {
 };
 
 Policy.prototype.addFlow = function(newFlow) {
+    w.debug("Policy.addFlow");
+    
     if(newFlow instanceof Flow) {
         var found = false;
 
@@ -427,6 +429,7 @@ Policy.prototype.checkWrite = function(writerPolicy, context) {
 // TODO: also use readerPolicy
 Policy.prototype.checkRead = function(readerPolicy, context) {
     var self = this;
+    w.debug("Policy.checkRead");
 
     if(!valid(readerPolicy) || !valid(context) || !valid(context.sender))
         return Promise.reject(new Error("Policy.prototype.checkRead: Invalid readerPolicy or context specification!"));

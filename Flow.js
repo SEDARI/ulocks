@@ -194,7 +194,7 @@ Flow.prototype.eq = function(otherFlow, conflicts) {
 };
 
 Flow.prototype.le = function(otherFlow, _showConflicts) {
-    w.debug("Flow.prototype.le: "+this+" <= "+otherFlow);
+    w.debug("Flow.le: "+this+" <= "+otherFlow);
 
     var showConflicts = false;
     var conflicts = false;
