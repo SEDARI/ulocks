@@ -195,8 +195,8 @@ Policy.top = function() {
 // **method bot()** returns the least restrictive policy of the framework
 Policy.bot = function() {
     return new Policy(
-        [{ to: true },
-         { to: false } ],
+        [{ op: "read" },
+         { op: "write" } ],
         { type : Entity.MinType });
 };
 
@@ -511,13 +511,19 @@ Policy.prototype.le = function(otherPol, write) {
 
     if(!valid(otherPol.flows))
         return true;
+    
+    if(!valid(write))
+        write = false;
 
-    var to = true;
-    if(write)
-        to = false;
+    function isReadWriteOp(op) {
+        if(write)
+            return Flow.OpTypes[op] === 0;
+        else
+            return Flow.OpTypes[op] === 1;
+    }
 
-    var flows1 = this.flows.filter(function(f) { return f.to === to; } );
-    var flows2 = otherPol.flows.filter(function(f) { return f.to === to; } );
+    var flows1 = this.flows.filter(function(f) { return isReadWriteOp(f.op) } );
+    var flows2 = otherPol.flows.filter(function(f) { return isReadWriteOp(f.op) } );
 
     // a policy without any flow allows nothing, i.e.
     // every new flow, weakens the original policy

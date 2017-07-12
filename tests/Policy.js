@@ -1,3 +1,4 @@
+var clone = require('clone');
 var chai = require('chai');
 var expect = chai.expect;
 var chaiAsPromised = require('chai-as-promised');
@@ -15,9 +16,9 @@ var settings = require("./settings.js");
 describe("Policy class must handle", function() {
 
     beforeEach(function() {
-        this.f1 = new Flow({ to: true, locks : [ { path : "inTimePeriod", args : [ "10:00", "11:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
-        this.f2 = new Flow({ to: true, locks : [ { path : "inTimePeriod", args : [ "09:00", "15:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
-        this.glb_f1_f2 = new Flow({ to: true, locks : [ { path : "inTimePeriod", args : [ "09:00", "15:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
+        this.f1 = new Flow({ op: "read", locks : [ { path : "inTimePeriod", args : [ "10:00", "11:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
+        this.f2 = new Flow({ op: "read", locks : [ { path : "inTimePeriod", args : [ "09:00", "15:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
+        this.glb_f1_f2 = new Flow({ op: "read", locks : [ { path : "inTimePeriod", args : [ "09:00", "15:00" ] }, { path : "hasId", args : [ "1", "2" ] } ] });
 
         this.lock_inTime_10_11 = { path : "inTimePeriod", args : [ "10:00", "11:00" ] };
         this.lock_inTime_08_18 = { path : "inTimePeriod", args : [ "08:00", "18:00" ] };
@@ -26,71 +27,71 @@ describe("Policy class must handle", function() {
         this.lock_inTime_12_14 = { path : "inTimePeriod", args : [ "12:00", "14:00" ] };
         this.lock_inTime_13_14 = { path : "inTimePeriod", args : [ "13:00", "14:00" ] };
 
-        this.f_fromany = new Flow({ to: false } );
-        this.f_toany = new Flow({ to: true } );
+        this.f_fromany = new Flow({ op: "write" } );
+        this.f_toany = new Flow({ op: "read" } );
 
-        this.f_toapp1_in1 = new Flow({ to: true, locks: [
+        this.f_toapp1_in1 = new Flow({ op: "read", locks: [
             {lock: "hasType", args: [ "/client" ] },
             {lock: "hasId", args: [ "1in1" ] } ] } );
-        this.f_toapp1_in2 = new Flow({ to: true, locks: [
+        this.f_toapp1_in2 = new Flow({ op: "read", locks: [
             {lock: "hasType", args: [ "/client" ] },
             {lock: "hasId", args: [ "1in2" ] } ] } );
-        this.f_fromapp1_out1 = new Flow({ to: false, locks: [
+        this.f_fromapp1_out1 = new Flow({ op: "write", locks: [
             {lock: "hasType", args: [ "/client" ] },
             {lock: "hasId", args: [ "1out1" ] } ] });
-        this.f_fromapp1_out2 = new Flow({ to: false, locks: [
+        this.f_fromapp1_out2 = new Flow({ op: "write", locks: [
             {lock: "hasType", args: [ "/client" ] },
             {lock: "hasId", args: [ "1out2" ] } ] } );
 
         // TODO: rewrite flows and use hasID and some new hasType lock
-        this.f_touser1 = new Flow({ to: true, locks: [ {lock: "hasType", args: [ "/user" ] },
+        this.f_touser1 = new Flow({ op: "read", locks: [ {lock: "hasType", args: [ "/user" ] },
                                                          {lock: "hasId", args: [ "1" ] } ] });
-        this.f_fromuser1 = new Flow({ to: false, locks: [ {lock: "hasType", args: [ "/user" ] },
+        this.f_fromuser1 = new Flow({ op: "write", locks: [ {lock: "hasType", args: [ "/user" ] },
                                                           {lock: "hasId", args: [ "1" ] } ] });
-        this.f_touser2 = new Flow({ to: true, locks: [ {lock: "hasType", args: [ "/user" ] },
+        this.f_touser2 = new Flow({ op: "read", locks: [ {lock: "hasType", args: [ "/user" ] },
                                                          {lock: "hasId", args: [ "2" ] } ] });
-        this.f_fromuser2 = new Flow({ to: false, locks: [ {lock: "hasType", args: [ "/user" ] },
+        this.f_fromuser2 = new Flow({ op: "write", locks: [ {lock: "hasType", args: [ "/user" ] },
                                                           {lock: "hasId", args: [ "2" ] } ] });
 
-        this.f_touser1_inTime_10_11 = new Flow({ to: true, locks : [
+        this.f_touser1_inTime_10_11 = new Flow({ op: "read", locks : [
             this.lock_inTime_10_11,
             {lock: "hasType", args: [ "/user" ] },
             {lock: "hasId", args: [ "1" ] }] });
-        this.f_touser1_inTime_08_18 = new Flow({ to: true, locks : [
+        this.f_touser1_inTime_08_18 = new Flow({ op: "read", locks : [
             this.lock_inTime_08_18,
             {lock: "hasType", args: [ "/user" ] },
             {lock: "hasId", args: [ "1" ] }] });
-        this.f_touser1_inTime_15_20 = new Flow({ to: true, locks : [
+        this.f_touser1_inTime_15_20 = new Flow({ op: "read", locks : [
             this.lock_inTime_15_20,
             {lock: "hasType", args: [ "/user" ] },
             {lock: "hasId", args: [ "1" ] } ] });
-        this.f_fromuser1_inTime_10_11 = new Flow({ to: false, locks : [
+        this.f_fromuser1_inTime_10_11 = new Flow({ op: "write", locks : [
             this.lock_inTime_10_11,
             {lock: "hasType", args: [ "/user" ] },
             {lock: "hasId", args: [ "1" ] } ] });
-        this.f_fromuser1_inTime_08_18 = new Flow({ to: false, locks : [
+        this.f_fromuser1_inTime_08_18 = new Flow({ op: "write", locks : [
             this.lock_inTime_08_18,
             {lock: "hasType", args: [ "/user" ] },
             {lock: "hasId", args: [ "1" ] } ] });
-        this.f_fromuser1_inTime_15_20 = new Flow({ to: false, locks : [
+        this.f_fromuser1_inTime_15_20 = new Flow({ op: "write", locks : [
             this.lock_inTime_15_20,
             {lock: "hasType", args: [ "/user" ] },
             {lock: "hasId", args: [ "1" ] } ] });
-        this.f_toany_inTime_13_16 = new Flow({ to: true, locks : [
+        this.f_toany_inTime_13_16 = new Flow({ op: "read", locks : [
             this.lock_inTime_13_16,
             {lock: "hasType", args: [ "/any" ] } ] });
-        this.f_toany_inTime_12_14 = new Flow({ to: true, locks : [
+        this.f_toany_inTime_12_14 = new Flow({ op: "read", locks : [
             this.lock_inTime_12_14,
             {lock: "hasType", args: [ "/any" ] } ] });
-        this.f_toany_inTime_13_14 = new Flow({ to: true, locks : [
+        this.f_toany_inTime_13_14 = new Flow({ op: "read", locks : [
             this.lock_inTime_13_14,
             {lock: "hasType", args: [ "/any" ] } ] });
 
-        this.f_touser2_inTime_10_11 = new Flow({ to: true, locks : [
+        this.f_touser2_inTime_10_11 = new Flow({ op: "read", locks : [
             this.lock_inTime_10_11,
             {lock: "hasType", args: [ "/user" ] },
             {lock: "hasId", args: [ "2" ] }] });
-        this.f_fromuser2_inTime_10_11 = new Flow({ to: false, locks : [
+        this.f_fromuser2_inTime_10_11 = new Flow({ op: "write", locks : [
             this.lock_inTime_10_11,
             {lock: "hasType", args: [ "/user" ] },
             {lock: "hasId", args: [ "2" ] }] });
@@ -264,19 +265,6 @@ describe("Policy class must handle", function() {
         });
     });
 
-    describe("comparison le with", function() {
-        it("bot policy smaller than policy with time constraints", function() {
-            var bot = Policy.bot();
-            var f = new Flow({to: true,"locks":[{"path":"inTimePeriod","args":["08:00","16:00"]}]});
-            var pol1 = new Policy([f], new Entity({"type": "/any"}));
-
-            var r1 = bot.le(pol1);
-            expect(r1).to.equal(true);
-            var r2 = pol1.le(bot);
-            expect(r2).to.equal(false);
-        });
-    });
-
     describe("constructor", function() {
         it("with undefined flow and undefined entity", function() {
             var c = function() { new Policy(); };
@@ -287,7 +275,7 @@ describe("Policy class must handle", function() {
         it("with defined flow array and undefined entity (data policy)", function() {
             var p;
             var c = function() {
-                var f = new Flow({ to: true, locks : [] });
+                var f = new Flow({ op: "read", locks : [] });
                 p = new Policy([f]);
             };
             expect(c).to.not.throw();
@@ -300,7 +288,7 @@ describe("Policy class must handle", function() {
             var e = new Entity();
 
             var c = function() {
-                var f = new Flow({ to: true, locks : [] });
+                var f = new Flow({ op: "read", locks : [] });
                 p = new Policy([f], e);
             };
 
@@ -311,7 +299,7 @@ describe("Policy class must handle", function() {
 
         it("with a regular entity policy", function() {
             var e = new Entity();
-            var f = new Flow({ to: true, locks : [] });
+            var f = new Flow({ op: "read", locks : [] });
             var p = new Policy([f], e);
             var p2;
 
@@ -326,7 +314,7 @@ describe("Policy class must handle", function() {
         });
 
         it("with a regular data policy", function() {
-            var f = new Flow({ to: true, locks : [] });
+            var f = new Flow({ op: "read", locks : [] });
             var p = new Policy([f]);
             var p2;
 
@@ -340,7 +328,7 @@ describe("Policy class must handle", function() {
         });
 
         it("with several flows", function() {
-            var f = new Flow({ to: true, locks : [] });
+            var f = new Flow({ op: "read", locks : [] });
             var p = new Policy([f, f, f, f, f]);
             var p2;
 
@@ -354,8 +342,8 @@ describe("Policy class must handle", function() {
         });
 
         it("with filtering identical incoming and outgoing flows", function() {
-            var inF = new Flow({ to: false, locks : [] });
-            var outF = new Flow({ to: true, locks : [] });
+            var inF = new Flow({ op: "write", locks : [] });
+            var outF = new Flow({ op: "read", locks : [] });
             var p = new Policy([inF, inF, outF, outF, outF]);
             var p2 = new Policy(p);
 
@@ -374,11 +362,11 @@ describe("Policy class must handle", function() {
         });
 
         it("with different incoming and outgoing flows", function() {
-            var inF1 = new Flow({ to: false, locks : [this.lock_inTime_10_11] });
-            var inF2 = new Flow({ to: false, locks : [this.lock_inTime_12_14] });
-            var outF1 = new Flow({ to: true, locks : [this.lock_inTime_15_20] });
-            var outF2 = new Flow({ to: true, locks : [this.lock_inTime_10_11] });
-            var outF3 = new Flow({ to: true, locks : [this.lock_inTime_12_14] });
+            var inF1 = new Flow({ op: "write", locks : [this.lock_inTime_10_11] });
+            var inF2 = new Flow({ op: "write", locks : [this.lock_inTime_12_14] });
+            var outF1 = new Flow({ op: "read", locks : [this.lock_inTime_15_20] });
+            var outF2 = new Flow({ op: "read", locks : [this.lock_inTime_10_11] });
+            var outF3 = new Flow({ op: "read", locks : [this.lock_inTime_12_14] });
             var p = new Policy([inF1, inF2, outF1, outF2, outF3]);
             var p2 = new Policy(p);
 
@@ -397,7 +385,7 @@ describe("Policy class must handle", function() {
         });
     });
 
-    describe("operaton lub with", function() {
+    describe("operation lub with", function() {
         it("two policies with any target and overlapping time constraints", function() {
             var pol1 = new Policy([this.f_toany_inTime_13_16], new Entity());
             var pol2 = new Policy([this.f_toany_inTime_12_14], new Entity());
@@ -587,7 +575,7 @@ describe("Policy class must handle", function() {
 
         it("one bot policy and one policy which only allows target flows", function() {
             var bot = Policy.bot();
-            var trg = new Policy([ { to: true } ], { type : '/any' });
+            var trg = new Policy([ { op: "read" } ], { type : '/any' });
 
             var newPol1 = bot.lub(trg);
             var res1 = newPol1.eq(trg);
@@ -670,6 +658,17 @@ describe("Policy class must handle", function() {
     });
 
     describe("comparison le with", function() {
+        it("bot policy smaller than policy with time constraints", function() {
+            var bot = Policy.bot();
+            var f = new Flow({op: "read","locks":[{"path":"inTimePeriod","args":["08:00","16:00"]}]});
+            var pol1 = new Policy([f], new Entity({"type": "/any"}));
+
+            var r1 = bot.le(pol1);
+            expect(r1).to.equal(true);
+            var r2 = pol1.le(bot);
+            expect(r2).to.equal(false);
+        });
+        
         it("two equal policies", function() {
             var p1 = new Policy([this.f1], this.e_app1_in1);
             var p2 = new Policy([this.f1], this.e_app1_in1);
@@ -814,15 +813,15 @@ describe("Policy class must handle", function() {
             var ent3 = new Entity({ type : "/user", id : "56"});
             var p3 = new Policy({"object":{"type":"so","id":"123"},"flows":
                                  [
-                                     {"to": false},
-                                     {"to": false,"locks":[
+                                     {op: "write"},
+                                     {op: "write","locks":[
                                          {"path":"actsFor","args":[
                                              {"type":"/any","id":"{$src.id}"},
                                              56
                                          ]}
                                      ]},
-                                     {to: true},
-                                     {to: true,"locks":[
+                                     {op: "read"},
+                                     {op: "read","locks":[
                                          {"path":"actsFor","args":[{"type":"/any","id":"{$trg.id}"},
                                                                    56
                                                                   ]
@@ -843,11 +842,11 @@ describe("Policy class must handle", function() {
                                 { type: sensor.type, data: sensor });
 
             // TODO: generate test case in which order of flows 3 and 4 is swapped
-            var p3 = new Policy([{to: false, locks: [ { lock: "hasId", args: [ "56" ] } ] },
-                                 {to: false, "locks": [
+            var p3 = new Policy([{op: "write", locks: [ { lock: "hasId", args: [ "56" ] } ] },
+                                 {op: "write", "locks": [
                                      {"path":"actsFor","args":[ 0, "56" ] } ]},
-                                 {to: true, locks: [ { lock: "hasId", args: [ "56" ] } ] },
-                                 {to: true,"locks":[
+                                 {op: "read", locks: [ { lock: "hasId", args: [ "56" ] } ] },
+                                 {op: "read","locks":[
                                      {"path":"actsFor","args":[ 0, "56" ]}]}]);
 
             var p = new Promise(function(resolve, reject) {
@@ -1133,10 +1132,10 @@ describe("Policy class must handle", function() {
         it("check access of manually generated Policies", function() {
             var outputPol = new Policy({
                 "entity": {"type": "/client", "id": "69426370.b44304" },
-                "flows": [ { to: true, "locks": [ { "path": "inTimePeriod", "args": [ "10:00", "12:00" ] } ] } ] });
+                "flows": [ { op: "read", "locks": [ { "path": "inTimePeriod", "args": [ "10:00", "12:00" ] } ] } ] });
             var inputPol = new Policy({
                 "entity": {"type": "/client", "id": "490fd2de.ab6a94", "input": "0" },
-                "flows": [ { to: false, "locks": [ { "path": "inTimePeriod", "args": [ "09:00", "13:00" ] } ] } ] });
+                "flows": [ { op: "write", "locks": [ { "path": "inTimePeriod", "args": [ "09:00", "13:00" ] } ] } ] });
 
             var input = new Entity({"type": "/client", "id": "490fd2de.ab6a94", "input": "0" });
             var output =  new Entity({"type": "/client", "id": "69426370.b44304" });
@@ -1239,7 +1238,7 @@ describe("Policy class must handle", function() {
             // var mPol = new Policy([ this.f_touser1_inTime_10_11, this.f_fromany]);
             var mPol = new Policy([ this.f_toany, this.f_fromany]);
 
-            var inputPortPol = new Policy([ { to: false } ],
+            var inputPortPol = new Policy([ { op: "write" } ],
                                           { type : '/sensor', id : 'f68766b0.a1594', input : 0 });
 
             var sender = { type: this.anyone.type,
@@ -1254,7 +1253,7 @@ describe("Policy class must handle", function() {
 
         it("with incoming public message and a time restricted input policy", function() {
             var mPol = new Policy([this.f_toany, this.f_fromany]);
-            var inputPortPol = new Policy([{ to: false,
+            var inputPortPol = new Policy([{ op: "write",
                                              locks : [ { path : 'inTimePeriod', args : ["00:00" , "23:59"] } ] }],
                                           { type : '/sensor', id : 'f68766b0.a1594', input : 0 });
 
@@ -1271,10 +1270,10 @@ describe("Policy class must handle", function() {
         // TODO: Enhance tests, minimum specify some test one the message itself
 
         it("with incoming message which can only flow to a specific sensor", function() {
-            var mPol_good = new Policy([{ to: true, locks: [ { lock: "hasId", args: [ 'f68766b0.a1594' ] } ] }, this.f_fromany ]);
-            var mPol_bad = new Policy([{ to: true, locks: [ { lock: "hasId", args: [ 'x' ] } ] }, this.f_fromany ]);
+            var mPol_good = new Policy([{ op: "read", locks: [ { lock: "hasId", args: [ 'f68766b0.a1594' ] } ] }, this.f_fromany ]);
+            var mPol_bad = new Policy([{ op: "read", locks: [ { lock: "hasId", args: [ 'x' ] } ] }, this.f_fromany ]);
 
-            var inputPortPol = new Policy([{ to: false }],
+            var inputPortPol = new Policy([{ op: "write" }],
                                           { type : '/sensor', id : 'f68766b0.a1594', input : 0 });
 
             var input = new Entity({ type : '/sensor', id : 'f68766b0.a1594', input : 0 });
@@ -1290,11 +1289,11 @@ describe("Policy class must handle", function() {
         });
 
         it("with incoming message which can only flow to entities with a specific type and id", function() {
-            var mPol_good = new Policy([{ to: true, locks: [ { lock: "hasId", args: [ 'f68766b0.a1594' ] }, { lock: "hasType", args: [ '/sensor'] } ] }, this.f_fromany ]);
-            var mPol_bad1 = new Policy([{ to: true, locks: [ { lock: "hasId", args: [ 'f68766b0.a1594' ] }, { lock: "hasType", args: [ '/client'] } ] }, this.f_fromany ]);
-            var mPol_bad2 = new Policy([{ to: true, locks: [ { lock: "hasId", args: [ 'f68766b0.a159' ] }, { lock: "hasType", args: [ '/client'] } ] }, this.f_fromany ]);
+            var mPol_good = new Policy([{ op: "read", locks: [ { lock: "hasId", args: [ 'f68766b0.a1594' ] }, { lock: "hasType", args: [ '/sensor'] } ] }, this.f_fromany ]);
+            var mPol_bad1 = new Policy([{ op: "read", locks: [ { lock: "hasId", args: [ 'f68766b0.a1594' ] }, { lock: "hasType", args: [ '/client'] } ] }, this.f_fromany ]);
+            var mPol_bad2 = new Policy([{ op: "read", locks: [ { lock: "hasId", args: [ 'f68766b0.a159' ] }, { lock: "hasType", args: [ '/client'] } ] }, this.f_fromany ]);
 
-            var inputPortPol = new Policy([{ to: false }],
+            var inputPortPol = new Policy([{ op: "write" }],
                                           { type : '/sensor', id : 'f68766b0.a1594', input : 0 });
 
             var input = new Entity({ type : '/sensor', id : 'f68766b0.a1594', input : 0 });
@@ -1319,14 +1318,14 @@ describe("Policy class must handle", function() {
     describe("le of Policy inside function when setting msg property", function() {
         it("checks le wit the two given functions", function() {
 
-            var thisPolicy =  new Policy({"entity":{"type":"/sensor","id":"66ab1cb3.39ab8c","output":0},"flows":[{to: true,"locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},{to: true,"locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},{to: false,"locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},{to: false,"locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]}]});
+            var thisPolicy =  new Policy({"entity":{"type":"/sensor","id":"66ab1cb3.39ab8c","output":0},"flows":[{op: "read","locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},{op: "read","locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},{op: "write","locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},{op: "write","locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]}]});
             var varPolicy = new Policy(
                 {"entity":{"type":"/sensor","id":"66ab1cb3.39ab8c","output":0},
                  "flows":[
-                     { to: false,"locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},
-                     {to: true,"locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},
-                     {to: false,"locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},
-                     {to: true,"locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]}]});
+                     { op: "write","locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},
+                     {op: "read","locks":[{"path":"hasId","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},
+                     {op: "write","locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]},
+                     {op: "read","locks":[{"path":"actsFor","args":["6c5cec44-f4a0-44e5-b9ce-a63d6f50c69d"],"not":false}]}]});
 
             var r = thisPolicy.le(varPolicy);
             expect(r).to.equal(true);
@@ -1334,14 +1333,14 @@ describe("Policy class must handle", function() {
 
         it("policy generation with two users", function() {
             var pol = new Policy([
-                {to: false,"locks":[{"path":"hasId","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},
-                {to: false,"locks":[{"path":"actsFor","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},
-                {to: true,"locks":[{"path":"hasId","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},
-                {to: true,"locks":[{"path":"actsFor","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},
-                {to: false,"locks":[{"path":"hasId","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]},
-                {to: false,"locks":[{"path":"actsFor","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]},
-                {to: true,"locks":[{"path":"hasId","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]},
-                {to: true,"locks":[{"path":"actsFor","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]}], {"type":"/sensor","id":"144848004447043dfd1f633c541d087db898766ac13ae"});
+                {op: "write","locks":[{"path":"hasId","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},
+                {op: "write","locks":[{"path":"actsFor","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},
+                {op: "read","locks":[{"path":"hasId","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},
+                {op: "read","locks":[{"path":"actsFor","args":["6603691f-6fc5-495b-81d5-ec9eb2a9648c"],"not":false}]},
+                {op: "write","locks":[{"path":"hasId","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]},
+                {op: "write","locks":[{"path":"actsFor","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]},
+                {op: "read","locks":[{"path":"hasId","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]},
+                {op: "read","locks":[{"path":"actsFor","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]}], {"type":"/sensor","id":"144848004447043dfd1f633c541d087db898766ac13ae"});
 
             var r = pol.flows.length;
             expect(r).to.equal(8);

@@ -34,6 +34,7 @@ var init = function(settings) {
         
         var toInit = [];
 
+        toInit.push(Flow.init(settings));
         toInit.push(Entity.init(settings));
         toInit.push(Lock.init(settings));
         toInit.push(Action.init(settings));
