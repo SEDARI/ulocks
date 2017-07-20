@@ -371,7 +371,7 @@ Policy.prototype.checkFlow = function(policy, direction, context) {
 //
 // checks whether access of subject to the object with
 // operation and the given flow specification is allowed
-Policy.prototype.checkAccess = function(subjectPolicy, operation, context) {
+Policy.prototype.checkAccess = function(subjectPolicy, context, operation) {
     if(!valid(subjectPolicy) || !valid(context))
         return Promise.reject(new Error("Policy.checkAccess: Invalid subjectPolicy or context specification!"));
 
@@ -389,7 +389,7 @@ Policy.prototype.checkWrite = function(writerPolicy, context, op) {
     var self = this;
 
     if(!valid(writerPolicy) || !valid(context) || !valid(context.sender))
-        return Promise.reject(new Error("Policy.prototype.checkWrite: Invalid writerPolicy or context specification!"));
+        return Promise.reject(new Error("Policy.checkWrite: Invalid writerPolicy or context specification!"));
 
     return new Promise(function(resolve, reject) {
         var flowPromises = [];
@@ -397,18 +397,21 @@ Policy.prototype.checkWrite = function(writerPolicy, context, op) {
         w.debug("Context: " + JSON.stringify(context, null, 2));
         w.debug("WriterPolicy: " + writerPolicy);
         w.debug("ObjectPolicy: " + self);
+        console.log("HERE");
 
         // check whether the writer with writerPolicy can write to *self*
         for(var f in self.flows) {
             // find flows describing writing access to this
-            if(valid(op))
+            if(valid(op)) {
                 if(self.flows[f].op !== op)
                     continue;
-            else
+            } else {
                 if(self.flows[f].hasTrg())
                     continue;
+            }
 
             var flow = self.flows[f];
+            
             flowPromises.push(flow.getClosedLocks(context, context.sender.type));
         }
 
@@ -438,12 +441,13 @@ Policy.prototype.checkRead = function(readerPolicy, context, op) {
 
         for(var f in self.flows) {
 
-            if(valid(op))
+            if(valid(op)) {
                 if(self.flows[f].op !== op)
                     continue;
-            else
+            } else {
                 if(self.flows[f].hasSrc())
                     continue;
+            }
 
             var flow = self.flows[f];
             flowPromises.push(flow.getClosedLocks(context, context.sender.type));
