@@ -372,27 +372,20 @@ Policy.prototype.checkFlow = function(policy, direction, context) {
 // checks whether access of subject to the object with
 // operation and the given flow specification is allowed
 Policy.prototype.checkAccess = function(subjectPolicy, operation, context) {
-    if(!valid(subjectPolicy) || !valid(context) || !valid(operation)) {
-        return Promise.reject(new Error("Policy.prototype.checkAccess: Invalid subjectPolicy or context specification!"));
-    }
+    if(!valid(subjectPolicy) || !valid(context))
+        return Promise.reject(new Error("Policy.checkAccess: Invalid subjectPolicy or context specification!"));
 
-    switch(operation) {
-    case Policy.Operation.WRITE:
-        return this.checkWrite(subjectPolicy, context);
-    case Policy.Operation.READ:
-        return this.checkRead(subjectPolicy, context);
-    case Policy.Operation.EXEC:
-    case Policy.Operation.DEL:
-        return Promise.reject(new Error("Operation in Policy::checkAccess not implemented yet!"));
-    default:
-        return Promise.reject(new Error("Unknown operation in Policy::checkAccess!"));
-    }
+    if(!valid(Flow.OpTypes[operation]))
+        return Promise.reject(new Error("Policy.checkAccess: Invalid access operation '"+operation+"'! Operations must be defined in ULock settings."));
 
-    return Promise.reject(new Error("Policy.prototype.checkAccess: Should not get here"));
+    if(Flow.OpTypes[operation] === 0)
+        return this.checkWrite(subjectPolicy, context, operation);
+    else
+        return this.checkRead(subjectPolicy, context, operation);
 };
 
 // TODO: also use writerPolicy
-Policy.prototype.checkWrite = function(writerPolicy, context) {
+Policy.prototype.checkWrite = function(writerPolicy, context, op) {
     var self = this;
 
     if(!valid(writerPolicy) || !valid(context) || !valid(context.sender))
@@ -408,8 +401,12 @@ Policy.prototype.checkWrite = function(writerPolicy, context) {
         // check whether the writer with writerPolicy can write to *self*
         for(var f in self.flows) {
             // find flows describing writing access to this
-            if(self.flows[f].hasTrg())
-                continue;
+            if(valid(op))
+                if(self.flows[f].op !== op)
+                    continue;
+            else
+                if(self.flows[f].hasTrg())
+                    continue;
 
             var flow = self.flows[f];
             flowPromises.push(flow.getClosedLocks(context, context.sender.type));
@@ -427,7 +424,7 @@ Policy.prototype.checkWrite = function(writerPolicy, context) {
 };
 
 // TODO: also use readerPolicy
-Policy.prototype.checkRead = function(readerPolicy, context) {
+Policy.prototype.checkRead = function(readerPolicy, context, op) {
     var self = this;
     w.debug("Policy.checkRead");
 
@@ -441,8 +438,12 @@ Policy.prototype.checkRead = function(readerPolicy, context) {
 
         for(var f in self.flows) {
 
-            if(self.flows[f].hasSrc())
-                continue;
+            if(valid(op))
+                if(self.flows[f].op !== op)
+                    continue;
+            else
+                if(self.flows[f].hasSrc())
+                    continue;
 
             var flow = self.flows[f];
             flowPromises.push(flow.getClosedLocks(context, context.sender.type));

@@ -126,9 +126,10 @@ describe("TimePeriodLock", function() {
             var hours = currentDate.getHours();
 
             var l = Lock.createLock({ lock: "inTimePeriod", args: [ lz(hours-1)+":00", lz(hours+1)+":00" ] });
-            l.isOpen().then(function(state) {
+            l.isOpen({isStatic: false}).then(function(state) {
                 expect(state.open).to.equal(true);
             }, function(e) {
+                console.log("Error: ", e);
                 expect(false).to.equal(true);
             });
         });
@@ -138,7 +139,7 @@ describe("TimePeriodLock", function() {
             var hours = currentDate.getHours();
 
             var l = Lock.createLock({ lock: "inTimePeriod", args: [ lz(hours-1)+":00", lz(hours+1)+":00" ], not: true });
-            l.isOpen().then(function(state) {
+            l.isOpen({isStatic: false}).then(function(state) {
                 expect(state.open).to.equal(false);
             }, function(e) {
                 expect(false).to.equal(true);
@@ -150,7 +151,7 @@ describe("TimePeriodLock", function() {
             var hours = currentDate.getHours();
 
             var l = Lock.createLock({ lock: "inTimePeriod", args: [ lz(hours-2)+":00", lz(hours-1)+":00" ] });
-            l.isOpen().then(function(state) {
+            l.isOpen({isStatic: false}).then(function(state) {
                 expect(state.open).to.equal(false);
             }, function(e) {
                 expect(false).to.equal(true);
@@ -162,9 +163,10 @@ describe("TimePeriodLock", function() {
             var hours = currentDate.getHours();
 
             var l = Lock.createLock({ lock: "inTimePeriod", args: [ lz(hours-2)+":00", lz(hours-1)+":00" ], not: true });
-            l.isOpen().then(function(state) {
-                expect(state.open).to.equal(false);
+            l.isOpen({isStatic: false}).then(function(state) {
+                expect(state.open).to.equal(true);
             }, function(e) {
+                console.log("e: ", e);
                 expect(false).to.equal(true);
             });
         });

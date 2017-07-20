@@ -5,6 +5,8 @@ var chaiAsPromised = require('chai-as-promised');
 
 chai.use(chaiAsPromised);
 
+var Promise = require('bluebird');
+
 var ULocks = require("../index.js");
 var Policy = ULocks.Policy;
 var Flow = ULocks.Flow;
@@ -829,7 +831,7 @@ describe("Policy class must handle", function() {
                                      ]}
                                  ]});
 
-            var p = p3.checkAccess(ent3, Policy.bot(), Policy.Operation.READ, null);
+            var p = p3.checkAccess(Policy.bot(), "read", null);
 
             return expect(p).to.eventually.be.rejected;
         });
@@ -850,7 +852,7 @@ describe("Policy class must handle", function() {
                                      {"path":"actsFor","args":[ 0, "56" ]}]}]);
 
             var p = new Promise(function(resolve, reject) {
-                p3.checkAccess(Policy.bot(), Policy.Operation.READ, c).then(function(r) {
+                p3.checkAccess(Policy.bot(), "read", c).then(function(r) {
                     resolve(r.grant);
                 }, function(e) {
                     reject(e);
@@ -880,12 +882,12 @@ describe("Policy class must handle", function() {
                                         { type: this.e_app1_in1.type,
                                           data: this.e_app1_in1 });
 
-            var r1 = p1.checkAccess(doAll, Policy.Operation.WRITE, c_u1_app1);
-            var r2 = p1.checkAccess(doAll, Policy.Operation.WRITE, c_u2_app1);
-            var r3 = p2.checkAccess(doAll, Policy.Operation.WRITE, c_u1_app1);
-            var r4 = p2.checkAccess(doAll, Policy.Operation.WRITE, c_u2_app1);
-            var r5 = p3.checkAccess(doAll, Policy.Operation.WRITE, c_u1_app1);
-            var r6 = p3.checkAccess(doAll, Policy.Operation.WRITE, c_u2_app1);
+            var r1 = p1.checkAccess(doAll, "write", c_u1_app1);
+            var r2 = p1.checkAccess(doAll, "write", c_u2_app1);
+            var r3 = p2.checkAccess(doAll, "write", c_u1_app1);
+            var r4 = p2.checkAccess(doAll, "write", c_u2_app1);
+            var r5 = p3.checkAccess(doAll, "write", c_u1_app1);
+            var r6 = p3.checkAccess(doAll, "write", c_u2_app1);
 
             var conflictLock1 = Lock.createLock({lock: "hasId", args: [ "1" ]});
             var conflictLock2 = Lock.createLock({lock: "hasId", args: [ "2" ]});
@@ -923,12 +925,12 @@ describe("Policy class must handle", function() {
                                           data: this.e_app1_in1 }
                                        );
 
-            var r1 = p1.checkAccess(doAll, Policy.Operation.READ, c_u1_app1);
-            var r2 = p1.checkAccess(doAll, Policy.Operation.READ, c_u2_app1);
-            var r3 = p2.checkAccess(doAll, Policy.Operation.READ, c_u1_app1);
-            var r4 = p2.checkAccess(doAll, Policy.Operation.READ, c_u2_app1);
-            var r5 = p3.checkAccess(doAll, Policy.Operation.READ, c_u1_app1);
-            var r6 = p3.checkAccess(doAll, Policy.Operation.READ, c_u2_app1);
+            var r1 = p1.checkAccess(doAll, "read", c_u1_app1);
+            var r2 = p1.checkAccess(doAll, "read", c_u2_app1);
+            var r3 = p2.checkAccess(doAll, "read", c_u1_app1);
+            var r4 = p2.checkAccess(doAll, "read", c_u2_app1);
+            var r5 = p3.checkAccess(doAll, "read", c_u1_app1);
+            var r6 = p3.checkAccess(doAll, "read", c_u2_app1);
 
             var conflictLock1 = Lock.createLock({lock: "hasId", args: [ "1" ]});
             var conflictLock2 = Lock.createLock({lock: "hasId", args: [ "2" ]});
@@ -966,12 +968,12 @@ describe("Policy class must handle", function() {
 
             var doAll = Policy.bot();
 
-            var r1 = sPol1.checkAccess(doAll, Policy.Operation.READ, c_app1i1_any);
-            var r2 = sPol2.checkAccess(doAll, Policy.Operation.READ, c_app1i1_any);
-            var r3 = sPol2.checkAccess(doAll, Policy.Operation.READ, c_app1i2_any);
-            var r4 = sPol3.checkAccess(doAll, Policy.Operation.READ, c_app1i1_any);
-            var r5 = sPol3.checkAccess(doAll, Policy.Operation.READ, c_app1i2_any);
-            var r6 = sPol3.checkAccess(doAll, Policy.Operation.READ, c_app1o2_any);
+            var r1 = sPol1.checkAccess(doAll, "read", c_app1i1_any);
+            var r2 = sPol2.checkAccess(doAll, "read", c_app1i1_any);
+            var r3 = sPol2.checkAccess(doAll, "read", c_app1i2_any);
+            var r4 = sPol3.checkAccess(doAll, "read", c_app1i1_any);
+            var r5 = sPol3.checkAccess(doAll, "read", c_app1i2_any);
+            var r6 = sPol3.checkAccess(doAll, "read", c_app1o2_any);
 
             var conflictLock0 = {lock: "hasType", args: [ "/client" ]}
             var conflictLock1 = Lock.createLock({lock: "hasId", args: [ "1in1" ]});
@@ -1011,12 +1013,12 @@ describe("Policy class must handle", function() {
                                    data: this.anyone });
 
 
-            var r1 = sPol1.checkAccess(doAll, Policy.Operation.WRITE, c1);
-            var r2 = sPol1.checkAccess(doAll, Policy.Operation.WRITE, c2);
-            var r3 = sPol2.checkAccess(doAll, Policy.Operation.WRITE, c2);
-            var r4 = sPol2.checkAccess(doAll, Policy.Operation.WRITE, c3);
-            var r5 = sPol3.checkAccess(doAll, Policy.Operation.WRITE, c1);
-            var r6 = sPol3.checkAccess(doAll, Policy.Operation.WRITE, c2);
+            var r1 = sPol1.checkAccess(doAll, "write", c1);
+            var r2 = sPol1.checkAccess(doAll, "write", c2);
+            var r3 = sPol2.checkAccess(doAll, "write", c2);
+            var r4 = sPol2.checkAccess(doAll, "write", c3);
+            var r5 = sPol3.checkAccess(doAll, "write", c1);
+            var r6 = sPol3.checkAccess(doAll, "write", c2);
 
             var conflictLock1 = Lock.createLock({lock: "hasId", args: [ "1out1" ]});
             var conflictLock2 = Lock.createLock({lock: "hasId", args: [ "1out2" ]});
@@ -1057,29 +1059,29 @@ describe("Policy class must handle", function() {
             var c7 = new Context({type: this.anyso.type, data: this.anyso}, receiver);
 
 
-            var r11 = p1.checkAccess(sPol1, Policy.Operation.WRITE, c1);
-            var r21 = p1.checkAccess(sPol2, Policy.Operation.WRITE, c2);
-            var r31 = p1.checkAccess(sPol3, Policy.Operation.WRITE, c3);
-            var r41 = p1.checkAccess(sPol4, Policy.Operation.WRITE, c4);
-            var r51 = p1.checkAccess(sPol5, Policy.Operation.WRITE, c5);
-            var r61 = p1.checkAccess(sPol6, Policy.Operation.WRITE, c6);
-            var r71 = p1.checkAccess(sPol7, Policy.Operation.WRITE, c7);
+            var r11 = p1.checkAccess(sPol1, "write", c1);
+            var r21 = p1.checkAccess(sPol2, "write", c2);
+            var r31 = p1.checkAccess(sPol3, "write", c3);
+            var r41 = p1.checkAccess(sPol4, "write", c4);
+            var r51 = p1.checkAccess(sPol5, "write", c5);
+            var r61 = p1.checkAccess(sPol6, "write", c6);
+            var r71 = p1.checkAccess(sPol7, "write", c7);
 
-            var r12 = p2.checkAccess(sPol1, Policy.Operation.WRITE, c1);
-            var r22 = p2.checkAccess(sPol2, Policy.Operation.WRITE, c2);
-            var r32 = p2.checkAccess(sPol3, Policy.Operation.WRITE, c3);
-            var r42 = p2.checkAccess(sPol4, Policy.Operation.WRITE, c4);
-            var r52 = p2.checkAccess(sPol5, Policy.Operation.WRITE, c5);
-            var r62 = p2.checkAccess(sPol6, Policy.Operation.WRITE, c6);
-            var r72 = p2.checkAccess(sPol7, Policy.Operation.WRITE, c7);
+            var r12 = p2.checkAccess(sPol1, "write", c1);
+            var r22 = p2.checkAccess(sPol2, "write", c2);
+            var r32 = p2.checkAccess(sPol3, "write", c3);
+            var r42 = p2.checkAccess(sPol4, "write", c4);
+            var r52 = p2.checkAccess(sPol5, "write", c5);
+            var r62 = p2.checkAccess(sPol6, "write", c6);
+            var r72 = p2.checkAccess(sPol7, "write", c7);
 
-            var r13 = p3.checkAccess(sPol1, Policy.Operation.WRITE, c1);
-            var r23 = p3.checkAccess(sPol2, Policy.Operation.WRITE, c2);
-            var r33 = p3.checkAccess(sPol3, Policy.Operation.WRITE, c3);
-            var r43 = p3.checkAccess(sPol4, Policy.Operation.WRITE, c4);
-            var r53 = p3.checkAccess(sPol5, Policy.Operation.WRITE, c5);
-            var r63 = p3.checkAccess(sPol6, Policy.Operation.WRITE, c6);
-            var r73 = p3.checkAccess(sPol7, Policy.Operation.WRITE, c7);
+            var r13 = p3.checkAccess(sPol1, "write", c1);
+            var r23 = p3.checkAccess(sPol2, "write", c2);
+            var r33 = p3.checkAccess(sPol3, "write", c3);
+            var r43 = p3.checkAccess(sPol4, "write", c4);
+            var r53 = p3.checkAccess(sPol5, "write", c5);
+            var r63 = p3.checkAccess(sPol6, "write", c6);
+            var r73 = p3.checkAccess(sPol7, "write", c7);
 
             var grant = { grant: true, cond: false, result: true };
             var deny = {grant: false, cond: false, conflicts: [], result: false };
@@ -1124,9 +1126,9 @@ describe("Policy class must handle", function() {
 
             var c = new Context(sender, receiver);
 
-            var r = targetPolicy.checkAccess(this.anyone, subjectPolicy, Policy.Operation.WRITE, c);
+            var r = targetPolicy.checkAccess(subjectPolicy, "write", c);
 
-            expect(r).to.eventually.eql({grant: false, cond: false, conflicts: []});
+            expect(r).to.eventually.eql({grant: false, cond: false, conflicts: [], result: false}); 
         });
 
         it("check access of manually generated Policies", function() {
@@ -1143,9 +1145,9 @@ describe("Policy class must handle", function() {
             var c = new Context({type: output.type, data: output},
                                 {type: input.type, data:input});
 
-            var result = inputPol.checkAccess(output, outputPol.entity, Policy.Operation.WRITE, c);
+            var result = inputPol.checkAccess(outputPol, "write", c);
 
-            expect(result).to.eventually.equal({grant: true, cond: true});
+            expect(result).to.eventually.eql({"grant": true, "cond": false, "result": true});
 
         });
 
@@ -1178,29 +1180,29 @@ describe("Policy class must handle", function() {
             var c6 = new Context({type: this.e_app1_in1.type, data: this.e_app1_in1}, { type: e6.type, data: e6 });
             var c7 = new Context({type: this.e_app1_in1.type, data: this.e_app1_in1}, { type: e7.type, data: e7 });
 
-            var r11 = p1.checkAccess(sPol1, Policy.Operation.READ, c1);
-            var r21 = p1.checkAccess(sPol2, Policy.Operation.READ, c2);
-            var r31 = p1.checkAccess(sPol3, Policy.Operation.READ, c3);
-            var r41 = p1.checkAccess(sPol4, Policy.Operation.READ, c4);
-            var r51 = p1.checkAccess(sPol5, Policy.Operation.READ, c5);
-            var r61 = p1.checkAccess(sPol6, Policy.Operation.READ, c6);
-            var r71 = p1.checkAccess(sPol7, Policy.Operation.READ, c7);
+            var r11 = p1.checkAccess(sPol1, "read", c1);
+            var r21 = p1.checkAccess(sPol2, "read", c2);
+            var r31 = p1.checkAccess(sPol3, "read", c3);
+            var r41 = p1.checkAccess(sPol4, "read", c4);
+            var r51 = p1.checkAccess(sPol5, "read", c5);
+            var r61 = p1.checkAccess(sPol6, "read", c6);
+            var r71 = p1.checkAccess(sPol7, "read", c7);
 
-            var r12 = p2.checkAccess(sPol1, Policy.Operation.READ, c1);
-            var r22 = p2.checkAccess(sPol2, Policy.Operation.READ, c2);
-            var r32 = p2.checkAccess(sPol3, Policy.Operation.READ, c3);
-            var r42 = p2.checkAccess(sPol4, Policy.Operation.READ, c4);
-            var r52 = p2.checkAccess(sPol5, Policy.Operation.READ, c5);
-            var r62 = p2.checkAccess(sPol6, Policy.Operation.READ, c6);
-            var r72 = p2.checkAccess(sPol7, Policy.Operation.READ, c7);
+            var r12 = p2.checkAccess(sPol1, "read", c1);
+            var r22 = p2.checkAccess(sPol2, "read", c2);
+            var r32 = p2.checkAccess(sPol3, "read", c3);
+            var r42 = p2.checkAccess(sPol4, "read", c4);
+            var r52 = p2.checkAccess(sPol5, "read", c5);
+            var r62 = p2.checkAccess(sPol6, "read", c6);
+            var r72 = p2.checkAccess(sPol7, "read", c7);
 
-            var r13 = p3.checkAccess(sPol1, Policy.Operation.READ, c1);
-            var r23 = p3.checkAccess(sPol2, Policy.Operation.READ, c2);
-            var r33 = p3.checkAccess(sPol3, Policy.Operation.READ, c3);
-            var r43 = p3.checkAccess(sPol4, Policy.Operation.READ, c4);
-            var r53 = p3.checkAccess(sPol5, Policy.Operation.READ, c5);
-            var r63 = p3.checkAccess(sPol6, Policy.Operation.READ, c6);
-            var r73 = p3.checkAccess(sPol7, Policy.Operation.READ, c7);
+            var r13 = p3.checkAccess(sPol1, "read", c1);
+            var r23 = p3.checkAccess(sPol2, "read", c2);
+            var r33 = p3.checkAccess(sPol3, "read", c3);
+            var r43 = p3.checkAccess(sPol4, "read", c4);
+            var r53 = p3.checkAccess(sPol5, "read", c5);
+            var r63 = p3.checkAccess(sPol6, "read", c6);
+            var r73 = p3.checkAccess(sPol7, "read", c7);
 
             var grant = { grant: true, cond: false, result: true };
             var deny = {grant: false, cond: false, conflicts: [], result: false };
@@ -1313,6 +1315,36 @@ describe("Policy class must handle", function() {
                                                                                       Lock.createLock({ lock: "hasType", args: [ "/client" ]})] }) ]);
         });
 
+    });
+
+    describe("operation types", function() {
+        it("checks whether invalid operation is recognized correctly.", function() {
+            function c() { var inF1 = new Flow({ op: "xyz", locks : [this.lock_inTime_10_11] }); }
+
+            expect(c).to.throw();
+        });
+
+        it("execute and read should not be allowed as only a write policy has been defined.", function() {
+            var p = new Policy([this.f_fromuser1]);
+            var doAll = Policy.bot();
+            
+            var c_u2_app1 = new Context({ type: this.user2.type,
+                                          data: this.user2 },
+                                        { type: this.e_app1_in1.type,
+                                          data: this.e_app1_in1 });
+            
+            var r1 = p.checkAccess(doAll, "execute", c_u2_app1);
+            var r2 = p.checkAccess(doAll, "read", c_u2_app1);
+            var r3 = p.checkAccess(doAll, "write", c_u2_app1);
+            
+            var conflictLock1 = Lock.createLock({lock: "hasId", args: [ "1" ]});
+            
+            return Promise.all([
+                expect(r1).to.eventually.eql({grant: false, cond: false, result: false, conflicts: []}),
+                expect(r2).to.eventually.eql({grant: false, cond: false, result: false, conflicts: []}),
+                expect(r3).to.eventually.eql({grant: false, cond: false, result: false, conflicts: [conflictLock1] })]);
+                
+        });
     });
 
     describe("le of Policy inside function when setting msg property", function() {
