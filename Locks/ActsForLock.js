@@ -9,6 +9,14 @@ module.exports = function(Lock) {
         Lock.call(this, lock);
     };
 
+    ActsForLock.meta = {
+        arity: 1,
+        descr: "Lock is open iff the user defined in this lock is acting for the entity to which the lock is applied",
+        name: "acts for",
+        scopes: [ "/sensor", "/client" ],
+        args: [ "user" ]
+    }
+
     Lock.registerLock("actsFor", ActsForLock);
 
     ActsForLock.prototype = Object.create(Lock.prototype);

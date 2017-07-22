@@ -9,6 +9,18 @@ module.exports = function(Lock) {
         Lock.call(this, lock);
     }
 
+    AttributeEqLock.meta = {
+        scopes: [ "/sensor", "/client", "/client" ],
+        arity: 3,
+        descr: "This lock is open iff the entity to which this lock is applied to is tagged with the specified attibute which was defined in the specified group and whose value is equal to the specified value.",
+        name: "attr is eq",
+        args: [
+            "group",
+            "attr",
+            "value"
+        ]
+    }
+
     Lock.registerLock("attrEq", AttributeEqLock);
 
     AttributeEqLock.prototype = Object.create(Lock.prototype);

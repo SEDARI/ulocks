@@ -14,6 +14,15 @@ module.exports = function(Lock) {
         Lock.call(this, lock);
     };
 
+    HasTypeLock.meta = {
+        arity: 1,
+        descr: "This lock is open iff the entity to which this lock is applied to has the specified type",
+        name: "has type",
+        args: [
+            "type"
+        ]
+    }
+
     Lock.registerLock("hasType", HasTypeLock);
 
     HasTypeLock.prototype = Object.create(Lock.prototype);
