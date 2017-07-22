@@ -26,11 +26,11 @@ var init = function(settings) {
         
         if(initialized) {
             w.info("ULocks have already been initialized. Ignore.");
-            return resolve(false);
+            resolve(false);
         }
 
         if(!settings)
-            return reject(new Error("Settings expected to initialize ULocks Framework"));
+            reject(new Error("Settings expected to initialize ULocks Framework"));
         
         var toInit = [];
 

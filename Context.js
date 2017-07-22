@@ -67,8 +67,11 @@ function Context(context, receiver, message, isStatic) {
      */
     this.locks = undefined;
 
-    if(!valid(context))
-        throw new Error("Invalid number or type of arguments passed to Context constructor!");
+    // if(!valid(context))
+    //    throw new Error("Invalid number or type of arguments passed to Context constructor!");
+
+    if(!valid(context) && !valid(receiver) && !valid(message) && !valid(isStatic))
+        return;
 
     // assume cloning of an existing object passed in first argument
     if(!valid(receiver) && !valid(message) && !valid(isStatic)) {

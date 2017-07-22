@@ -9,6 +9,16 @@ module.exports = function(Lock) {
         Lock.call(this, lock);
     };
 
+    TimePeriodLock.meta = {
+        arity: 2,
+        descr: "This lock is open iff the current time of the system is within the specified time interval.",
+        name: "time is in interval",
+        args: [
+            "time",
+            "time"
+        ]
+    };
+
     Lock.registerLock("inTimePeriod", TimePeriodLock);
 
     TimePeriodLock.prototype = Object.create(Lock.prototype);
