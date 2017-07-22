@@ -108,7 +108,7 @@ function Policy(flows, entity) {
     if(!flows)
         throw new Error("Policy: Cannot construct policy without valid flow specifications.");
 
-    if(flows instanceof Policy || flows.flows || flows.actions) {
+    if(flows instanceof Policy || (flows.flows instanceof Object)) {
         var policy = flows;
 
         if(entity) {
@@ -119,44 +119,33 @@ function Policy(flows, entity) {
             this.entity = new Entity(policy.entity);
         }
 
-        if(policy.hasOwnProperty("flows") && valid(policy.flows)) {
-            this.flows = [];
-            for(var i in policy.flows) {
-                // console.log("policy.flows["+i+"]: "+JSON.stringify(policy.flows[i]));
-                var newFlow = new Flow(policy.flows[i]);
-                // console.log("Flow generated");
-                // this.flows.push(newFlow);
-                this.addFlow(newFlow);
-                // console.log("newFlow: "+newFlow);
-            }
-        }
+        console.log("policy: ", policy);
 
-        if(policy.hasOwnProperty("actions") && valid(policy.actions) && policy.actions.length) {
-            var l = policy.actions.length;
-            if(l > 0) {
-                this.actions = [];
-                for(var i = 0; i < l; i++) {
-                    this.actions[i] = Action.createAction(policy.actions[i]);
+        if(policy.hasOwnProperty("flows") && valid(policy.flows)) {
+            this.flows = {};
+            for(var op in policy.flows) {
+                var opFlows = policy.flows[op].flows;
+                for(var i in opFlows) {
+                    var newFlow = new Flow(opFlows[i]);
+                    this.addFlow(newFlow);
                 }
             }
         }
-
     } else {
         // if no entity is specified for the policy, it is
         // a data policy, a policy for a specific entity otherwise
         if(valid(entity))
             this.entity = new Entity(entity);
 
+        console.log("Construct Policy from ", flows);
+
         if(valid(flows)) {
             if(flows instanceof Array) {
-                this.flows = [];
-                for(var i in flows) {
-                    // this.flows.push(new Flow(flows[i]));
+                this.flows = {};
+                for(var i in flows)
                     this.addFlow(new Flow(flows[i]));
-                }
-            } else {
-                throw new Error("Policy: Cannot construct rule from flows which are not contained in an array");
-            }
+            } else
+                throw new Error("Policy: Cannot construct rule from flows which are not contained in an array!");
         }
     }
 }; // End Constructor;
@@ -192,6 +181,7 @@ Policy.top = function() {
     return new Policy([]);
 };
 
+// TODO: generate a flow entry for every operation
 // **method bot()** returns the least restrictive policy of the framework
 Policy.bot = function() {
     return new Policy(
@@ -217,34 +207,64 @@ Policy.prototype.add = function(toAdd) {
         throw new Error("Policy: Cannot add entity '"+toAdd+"' to Policy as it is neither of type Policy nor of Flow");
 };
 
+Policy.prototype.contains = function(flow) {
+    if(!(flow instanceof Flow) && !valid(flow.op))
+        return false;
+    for(var op in this.flows) {
+        var flows = this.flows[op];
+        for(var f in flows) {
+            if(newFlow.eq(flows[f]))
+                return true;
+        }
+    }
+    return false;
+}
+
+Policy.prototype.covers = function(flow) {
+    if(!(flow instanceof Flow) && !valid(flow.op))
+        return false;
+    for(var op in this.flows) {
+        var flows = this.flows[op].flows;
+        for(var f in flows) {
+            if(flow.le(flows[f]))
+                return true;
+        }
+    }
+    return false;
+}
+
 Policy.prototype.addFlow = function(newFlow) {
-    w.debug("Policy.addFlow");
-    
+    w.debug("Policy.addFlow");    
+
     if(newFlow instanceof Flow) {
         var found = false;
 
-        for(var f in this.flows) {
-            var flow = this.flows[f];
-
-            // the new flow is less restrictive than
-            // the flow contained in this policy, no
-            // need to add the flow or the flow is equal
-            if(newFlow.le(flow)) {
-                found = true;
-                break;
+        if(!this.covers(newFlow)) {
+            if(!this.flows.hasOwnProperty(newFlow.op)) {
+                this.flows[newFlow.op] = {};
+                this.flows[newFlow.op].flows = [];
+                this.flows[newFlow.op].actions = [];
             }
+            this.flows[newFlow.op].flows.push(newFlow);
         }
-
-        // if we come here we have not found an equal
-        // or dominating flow thus we can add the flow
-        if(!found)
-            this.flows.push(newFlow);
     } else
         throw new Error("Policy: Call to addFlow with an object other than a Flow");
 };
 
-Policy.prototype.getFlows = function() {
-    return this.flows;
+Policy.prototype.getFlows = function(op) {
+    if(!valid(op)) {
+        var all = [];
+        for(var op in this.flows) {
+            console.log("FLOWS FOR "+op+": ", this.flows[op].flows.length);
+            all = all.concat(this.flows[op].flows);
+        }
+        return all;
+    } else {
+        if(this.flows.hasOwnProperty(op))
+            return this.flows[op].flows;
+        else
+            return null;
+    }   
 };
 
 Policy.prototype.isDataPolicy = function() {
@@ -276,46 +296,46 @@ Policy.prototype.checkIncoming = function(trgPolicy, context) {
 
     // console.log("Iterate data policy: ");
 
-    // here the subject to be checked is the target
-    // and the object is the message itself
-    for(var f in dataPolicy.flows) {
+    // TODO: Ensure that flowTo and flowFrom are valid ops and are mapped to read/write
+    var dataFlows = dataPolicy.getFlows("read");
 
-        // ignore all policies which may prevent writing to the item
-        if(dataPolicy.flows[f].hasSrc())
-            continue;
-
-        var flow = dataPolicy.flows[f];
-
-        // console.log("\ttype of policy target dominates actual target");
-
-        var tmpContext = new Context(context);
-        tmpContext.setReceiverContext();
-
-        // iterate through all locks of the flow and determine its closed locks
-        item_flowPromises.push(flow.getClosedLocks(tmpContext, context.receiver.type));
+    if(dataFlows !== null) {
+        // here the subject to be checked is the target
+        // and the object is the message itself
+        for(var f in dataFlows) {
+            var flow = dataFlows[f];
+            
+            // console.log("\ttype of policy target dominates actual target");
+            
+            var tmpContext = new Context(context);
+            tmpContext.setReceiverContext();
+            
+            // iterate through all locks of the flow and determine its closed locks
+            item_flowPromises.push(flow.getClosedLocks(tmpContext, context.receiver.type));
+        }
     }
 
     w.debug("---- check whether node policy accepts message ----");
 
-    // Second, verify whether the node policy of the
-    // node receiving data allows the data to enter the node
-    for(var f in trgPolicy.flows) {
-        // only check flows for incoming data
-        if(trgPolicy.flows[f].hasTrg())
-            continue;
+    var targetFlows = trgPolicy.getFlows("write");
+    if(targetFlows !== null) {
+        // Second, verify whether the node policy of the
+        // node receiving data allows the data to enter the node
+        for(var f in targetFlows) {
+            var flow = targetFlows[f];
+            var tmpContext = new Context(context);
+            tmpContext.setMsgContext();
 
-        var flow = trgPolicy.flows[f];
-
-        var tmpContext = new Context(context);
-        tmpContext.setMsgContext();
-
-        entity_flowPromises.push(flow.getClosedLocks(tmpContext, 'msg'));
+            // TODO: ensure msg entity type is always there
+            entity_flowPromises.push(flow.getClosedLocks(tmpContext, 'msg'));
+        }
     }
 
     return new Promise(function(resolve, reject) {
-
         Promise.all(item_flowPromises).then(function(itemEvals) {
             Promise.all(entity_flowPromises).then(function(entityEvals) {
+                console.log("CONFLICTS: ", itemEvals, entityEvals);
+                
                 resolve(processConflicts(itemEvals, entityEvals));
             }, function(e) {
                 reject(e);
@@ -400,18 +420,9 @@ Policy.prototype.checkWrite = function(writerPolicy, context, op) {
         console.log("HERE");
 
         // check whether the writer with writerPolicy can write to *self*
-        for(var f in self.flows) {
-            // find flows describing writing access to this
-            if(valid(op)) {
-                if(self.flows[f].op !== op)
-                    continue;
-            } else {
-                if(self.flows[f].hasTrg())
-                    continue;
-            }
-
-            var flow = self.flows[f];
-            
+        var opFlows = self.getFlows(op);
+        for(var f in opFlows) {
+            var flow = opFlows[f];
             flowPromises.push(flow.getClosedLocks(context, context.sender.type));
         }
 
@@ -438,18 +449,9 @@ Policy.prototype.checkRead = function(readerPolicy, context, op) {
         w.debug("============ checkReadAccess ============");
 
         var flowPromises = [];
-
-        for(var f in self.flows) {
-
-            if(valid(op)) {
-                if(self.flows[f].op !== op)
-                    continue;
-            } else {
-                if(self.flows[f].hasSrc())
-                    continue;
-            }
-
-            var flow = self.flows[f];
+        var opFlows = self.getFlows(op);
+        for(var f in opFlows) {         
+            var flow = opFlows[f];
             flowPromises.push(flow.getClosedLocks(context, context.sender.type));
         }
 
@@ -477,37 +479,46 @@ Policy.prototype.eq = function(other) {
             return false;
         }
 
-    var covered = [];
-    for(var f1 in this.flows) {
-        var matched = false;
-        var flow1 = this.flows[f1];
+    if(Object.keys(this.flows).length != Object.keys(other.flows).length)
+        return false;
 
-        // and apply flow1 to each flow in flows2
-        for(var f2 in other.flows) {
-            var flow2 = other.flows[f2];
-
-            if(flow1.eq(flow2)) {
-                matched = true;
-                covered[f2] = true;
+    var covered = {};
+    for(var op in this.flows) {
+        for(var f1 in this.flows[op].flows) {
+            var matched = false;
+            var flow1 = this.flows[op].flows[f1];
+            // and apply flow1 to each flow in flows2
+            for(var f2 in other.flows[op].flows) {
+                var flow2 = other.flows[op].flows[f2];
+                try {
+                    if(flow1.eq(flow2)) {
+                        matched = true;
+                        if(!covered.hasOwnProperty(op))
+                            covered[op] = [];
+                        (covered[op])[f2] = true;
+                    }
+                } catch(e) {
+                    console.log(e);
+                }
             }
-        }
-
-        if(!matched) {
-            return false;
+            
+            if(!matched) {
+                return false;
+            }
         }
     }
 
-    for(var f2 in other.flows)
-        if(covered[f2] !== true)
-            return false;
+    for(var op in other.flows) {
+        for(var f2 in other.flows[op].flows)
+            if((covered[op])[f2] !== true)
+                return false;
+    }
 
     return true;
 };
 
-Policy.prototype.le = function(otherPol, write) {
-    // TODO: Dirty bugfix!!! Fix!!!
-    // return true;
-
+// TODO: Ensure that write and read are always valid operation types
+Policy.prototype.le = function(otherPol, op) {
     var locksToCheck = [];
     var complies = true;
 
@@ -517,30 +528,25 @@ Policy.prototype.le = function(otherPol, write) {
     if(!valid(otherPol.flows))
         return true;
     
-    if(!valid(write))
-        write = false;
+    if(!valid(op))
+        op = "read";
 
-    function isReadWriteOp(op) {
-        if(write)
-            return Flow.OpTypes[op] === 0;
-        else
-            return Flow.OpTypes[op] === 1;
-    }
-
-    var flows1 = this.flows.filter(function(f) { return isReadWriteOp(f.op) } );
-    var flows2 = otherPol.flows.filter(function(f) { return isReadWriteOp(f.op) } );
+    var flows1 = this.getFlows(op);
+    var flows2 = otherPol.getFlows(op);
 
     // a policy without any flow allows nothing, i.e.
     // every new flow, weakens the original policy
-    if(flows2.length === 0)
+    if(flows2 === null || flows2.length === 0)
         return true;
 
     // this policy defines no flow, i.e. it is the
     // top policy, the other policy defines at least
     // one flow, thus, this policy cannot be less restrictive
-    if(flows1.length === 0)
+    if(flows1 === null || flows1.length === 0)
         return false;
 
+    console.log("flows1.length: ", flows1.length);
+    console.log("flows2.length: ", flows2.length);
 
     var covered1 = [];
     for(var f1 in flows1) {
@@ -548,6 +554,7 @@ Policy.prototype.le = function(otherPol, write) {
         for(var f2 in flows2) {
             var flow2 = flows2[f2];
             if(flow1.le(flow2)) {
+                console.log("flow1 < flow2");
                 covered1[f1] = true;
             }
         }
@@ -561,6 +568,8 @@ Policy.prototype.le = function(otherPol, write) {
             complies = false;
             break;
         }
+
+    console.log("complies: ", complies);
 
     return complies;
 };
@@ -593,24 +602,24 @@ Policy.prototype.glb = function() {
                 newPolicy.entity = new Entity(otherPol.entity);
 
         var toAdd = [];
-        for(var f1 in newPolicy.flows) {
-            var flow1 = newPolicy.flows[f1];
-            for(var f2 in otherPol.flows) {
-                var flow2 = otherPol.flows[f2];
-                // flows are equal or first flow is
-                // less restrictive => nothing to do
-
-                if(flow1.eq(flow2) || flow1.le(flow2))
-                    continue;
-                else
-                    toAdd[f2] = true;
+        for(var op in newPolicy.flows) {
+            for(var f1 in newPolicy.getFlows(op)) {
+                var flow1 = newPolicy.getFlows(op)[f1];
+                for(var f2 in otherPol.getFlows(op)) {
+                    var flow2 = otherPol.getFlows(op)[f2];
+                    
+                    // flows are equal or first flow is
+                    // less restrictive => nothing to do
+                    if(flow1.eq(flow2) || flow1.le(flow2))
+                        continue;
+                    else
+                        toAdd.push(flow2);
+                }
             }
         }
 
-        for(var f2 in otherPol.flows) {
-            if(toAdd[f2] === true)
-                newPolicy.add(otherPol.flows[f2]);
-        }
+        for(var f in toAdd)
+            newPolicy.add(toAdd[f]);
     }
 
     return newPolicy;
@@ -648,14 +657,17 @@ Policy.prototype.lub = function() {
 
         var newFlows = [];
         var f2;
-        for(f2 in otherPol.flows) {
-            var f1;
-            for(f1 in newPolicy.flows) {
-                if(newPolicy.flows[f1].hasSrc() && otherPol.flows[f2].hasSrc() ||
-                   newPolicy.flows[f1].hasTrg() && otherPol.flows[f2].hasTrg()) {
-                    var res = newPolicy.flows[f1].lub(otherPol.flows[f2]);
-                    if(res)
-                        newFlows.push(res);
+        for(var op in otherPol.flows) {
+            var opFlows2 = otherPol.getFlows(op)
+            for(f2 in opFlows2) {
+                var f1;
+                var opFlows1 = newPolicy.getFlows(op);
+                if(valid(opFlows1)) {
+                    for(f1 in opFlows1) {
+                        var res = opFlows1[f1].lub(opFlows2[f2]);
+                        if(res)
+                            newFlows.push(res);
+                    }
                 }
             }
         }
@@ -666,6 +678,14 @@ Policy.prototype.lub = function() {
             newPolicy.addFlow(new Flow(newFlows[f]));
         }
     }
+
+    console.log("THIS: "+ JSON.stringify(this));
+    console.log("ARGUMENTS: ");
+    for(var i in arguments) {
+        console.log("\t"+i+": " + arguments[i]);
+    }
+    console.log("NEW POLICY: " + JSON.stringify(newPolicy));
+    
     return newPolicy;
 }
 
@@ -679,11 +699,13 @@ Policy.prototype.toString = function() {
 
     str += "[";
 
-    for(var f in this.flows) {
-        var flow = this.flows[f];
-        if(f > 0)
-            str += ",\n\t";
-        str += flow;
+    for(var op in this.flows) {
+        for(var f in this.flows[op]) {
+            var flow = this.flows[op][f];
+            if(f > 0)
+                str += ",\n\t";
+            str += flow;
+        }
     }
 
     str += "]>";
