@@ -18,25 +18,20 @@ function valid(o) {
 
 // TODO: support initialization with old format
 function Flow(flow) {
+    if(!valid(Flow.OpTypes))
+        throw new Error("Flow has not been initialized. Call init of ULocks first.");
+    
     if(!valid(flow)) {
         throw new Error("Flow: Error: Cannot construct flow from undefined flow.");
     }
 
-    if(!flow.hasOwnProperty('to'))
-        throw new Error("Flow '"+JSON.stringify(flow)+"' does not specify its direction.");
+    if(!flow.hasOwnProperty('op') || !valid(flow.op))
+        throw new Error("Flow '"+JSON.stringify(flow)+"' does not specify underlying operation!");
     else
-        this.to = flow.to;
-
-    if(flow.hasOwnProperty('op') && valid(flow.op))
         this.op = flow.op;
-
-    // either source or target is properly defined
-    if(!valid(this.op)) {
-        if(this.to === false)
-            this.op = Flow.OpTypes.Write;
-        else
-            this.op = Flow.OpTypes.Read;
-    }
+    
+    if(!valid(Flow.OpTypes[this.op]))
+        throw new Error("Flow '"+JSON.stringify(flow)+"' specification uses unknown operation!");
 
     var totalLocks = 0;
     var numLocks = {};
@@ -95,19 +90,23 @@ function Flow(flow) {
     }
 }
 
-Flow.OpTypes = {
-    Read: "read",
-    Write: "write",
-    Exec: "execute",
-    Delete: "delete"
-};
+Flow.OpTypes = null;
+
+Flow.init = function(settings) {
+    if(!settings.hasOwnProperty('opTypes'))
+        return Promise.reject(new Error("ULocks: Flow cannot be initialized. Settings do not specify operation types!"))
+    
+    Flow.OpTypes = settings.opTypes;
+
+    return Promise.resolve();
+}
 
 Flow.prototype.hasSrc = function() {
-    return !this.to;
+    return !(Flow.OpTypes[this.op] === 1)
 };
 
 Flow.prototype.hasTrg = function() {
-    return this.to;
+    return (Flow.OpTypes[this.op] === 1)
 };
 
 // TODO: also compare operations and actions!!
@@ -121,7 +120,7 @@ Flow.prototype.eq = function(otherFlow, conflicts) {
             matched = [];
     }
 
-    if(!valid(this.to) || !valid(otherFlow.to) || this.to !== otherFlow.to)
+    if(!valid(this.op) || !valid(otherFlow.op) || this.op !== otherFlow.op)
         return false;
 
     var thisFlow = this;
@@ -194,8 +193,6 @@ Flow.prototype.eq = function(otherFlow, conflicts) {
 };
 
 Flow.prototype.le = function(otherFlow, _showConflicts) {
-    w.debug("Flow.prototype.le: "+this+" <= "+otherFlow);
-
     var showConflicts = false;
     var conflicts = false;
     if(valid(_showConflicts)) {
@@ -207,7 +204,7 @@ Flow.prototype.le = function(otherFlow, _showConflicts) {
     // incompatible flows to be compared
     // TODO: decide whether to better throw an error here
     // TODO: better compare operations!
-    if(!valid(this.to) || !valid(otherFlow.to) || this.to !== otherFlow.to)
+    if(!valid(this.op) || !valid(otherFlow.op) || this.op !== otherFlow.op)
         return false;
 
     var thisFlow = this;
@@ -432,7 +429,7 @@ Flow.prototype.lub = function(flow) {
     // flows are incompatible and there is
     // no upper bound on them; we would need
     // a new policy for this
-    if(!valid(this.to) || !valid(flow.to) || this.to !== flow.to) {
+    if(!valid(this.op) || !valid(flow.op) || this.op !== flow.op) {
         // console.log("Error: try to lub source and target flow");
         return null;
     } else {
@@ -462,7 +459,7 @@ Flow.prototype.toString = function() {
     var str = "";
     var l = this.hasOwnProperty('locks') ? this.locks.length : 0;
 
-    if(this.to) {
+    if(Flow.OpTypes[this.op] === 1) {
         if(this.hasOwnProperty('locks')) {
             var c = 0;
             for(var t  in this.locks) {
@@ -524,7 +521,6 @@ Flow.prototype.toString = function() {
 };
 
 Flow.prototype.actOn = function(data, context, scope) {
-    w.debug(">>> Flow.prototype.actOn");
     var self = this;
     return new Promise(function(resolve, reject) {
         if(self.hasOwnProperty('actions')) {

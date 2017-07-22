@@ -195,8 +195,8 @@ Policy.top = function() {
 // **method bot()** returns the least restrictive policy of the framework
 Policy.bot = function() {
     return new Policy(
-        [{ to: true },
-         { to: false } ],
+        [{ op: "read" },
+         { op: "write" } ],
         { type : Entity.MinType });
 };
 
@@ -218,6 +218,8 @@ Policy.prototype.add = function(toAdd) {
 };
 
 Policy.prototype.addFlow = function(newFlow) {
+    w.debug("Policy.addFlow");
+    
     if(newFlow instanceof Flow) {
         var found = false;
 
@@ -369,32 +371,25 @@ Policy.prototype.checkFlow = function(policy, direction, context) {
 //
 // checks whether access of subject to the object with
 // operation and the given flow specification is allowed
-Policy.prototype.checkAccess = function(subjectPolicy, operation, context) {
-    if(!valid(subjectPolicy) || !valid(context) || !valid(operation)) {
-        return Promise.reject(new Error("Policy.prototype.checkAccess: Invalid subjectPolicy or context specification!"));
-    }
+Policy.prototype.checkAccess = function(subjectPolicy, context, operation) {
+    if(!valid(subjectPolicy) || !valid(context))
+        return Promise.reject(new Error("Policy.checkAccess: Invalid subjectPolicy or context specification!"));
 
-    switch(operation) {
-    case Policy.Operation.WRITE:
-        return this.checkWrite(subjectPolicy, context);
-    case Policy.Operation.READ:
-        return this.checkRead(subjectPolicy, context);
-    case Policy.Operation.EXEC:
-    case Policy.Operation.DEL:
-        return Promise.reject(new Error("Operation in Policy::checkAccess not implemented yet!"));
-    default:
-        return Promise.reject(new Error("Unknown operation in Policy::checkAccess!"));
-    }
+    if(!valid(Flow.OpTypes[operation]))
+        return Promise.reject(new Error("Policy.checkAccess: Invalid access operation '"+operation+"'! Operations must be defined in ULock settings."));
 
-    return Promise.reject(new Error("Policy.prototype.checkAccess: Should not get here"));
+    if(Flow.OpTypes[operation] === 0)
+        return this.checkWrite(subjectPolicy, context, operation);
+    else
+        return this.checkRead(subjectPolicy, context, operation);
 };
 
 // TODO: also use writerPolicy
-Policy.prototype.checkWrite = function(writerPolicy, context) {
+Policy.prototype.checkWrite = function(writerPolicy, context, op) {
     var self = this;
 
     if(!valid(writerPolicy) || !valid(context) || !valid(context.sender))
-        return Promise.reject(new Error("Policy.prototype.checkWrite: Invalid writerPolicy or context specification!"));
+        return Promise.reject(new Error("Policy.checkWrite: Invalid writerPolicy or context specification!"));
 
     return new Promise(function(resolve, reject) {
         var flowPromises = [];
@@ -402,14 +397,21 @@ Policy.prototype.checkWrite = function(writerPolicy, context) {
         w.debug("Context: " + JSON.stringify(context, null, 2));
         w.debug("WriterPolicy: " + writerPolicy);
         w.debug("ObjectPolicy: " + self);
+        console.log("HERE");
 
         // check whether the writer with writerPolicy can write to *self*
         for(var f in self.flows) {
             // find flows describing writing access to this
-            if(self.flows[f].hasTrg())
-                continue;
+            if(valid(op)) {
+                if(self.flows[f].op !== op)
+                    continue;
+            } else {
+                if(self.flows[f].hasTrg())
+                    continue;
+            }
 
             var flow = self.flows[f];
+            
             flowPromises.push(flow.getClosedLocks(context, context.sender.type));
         }
 
@@ -425,8 +427,9 @@ Policy.prototype.checkWrite = function(writerPolicy, context) {
 };
 
 // TODO: also use readerPolicy
-Policy.prototype.checkRead = function(readerPolicy, context) {
+Policy.prototype.checkRead = function(readerPolicy, context, op) {
     var self = this;
+    w.debug("Policy.checkRead");
 
     if(!valid(readerPolicy) || !valid(context) || !valid(context.sender))
         return Promise.reject(new Error("Policy.prototype.checkRead: Invalid readerPolicy or context specification!"));
@@ -438,8 +441,13 @@ Policy.prototype.checkRead = function(readerPolicy, context) {
 
         for(var f in self.flows) {
 
-            if(self.flows[f].hasSrc())
-                continue;
+            if(valid(op)) {
+                if(self.flows[f].op !== op)
+                    continue;
+            } else {
+                if(self.flows[f].hasSrc())
+                    continue;
+            }
 
             var flow = self.flows[f];
             flowPromises.push(flow.getClosedLocks(context, context.sender.type));
@@ -508,13 +516,19 @@ Policy.prototype.le = function(otherPol, write) {
 
     if(!valid(otherPol.flows))
         return true;
+    
+    if(!valid(write))
+        write = false;
 
-    var to = true;
-    if(write)
-        to = false;
+    function isReadWriteOp(op) {
+        if(write)
+            return Flow.OpTypes[op] === 0;
+        else
+            return Flow.OpTypes[op] === 1;
+    }
 
-    var flows1 = this.flows.filter(function(f) { return f.to === to; } );
-    var flows2 = otherPol.flows.filter(function(f) { return f.to === to; } );
+    var flows1 = this.flows.filter(function(f) { return isReadWriteOp(f.op) } );
+    var flows2 = otherPol.flows.filter(function(f) { return isReadWriteOp(f.op) } );
 
     // a policy without any flow allows nothing, i.e.
     // every new flow, weakens the original policy

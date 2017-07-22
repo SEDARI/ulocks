@@ -1,6 +1,6 @@
 {
     "name": "ULocks",
-    "version": "0.1.0",
+    "version": "0.3.0",
     "description": "Usage Lock Policies for Flow Control",
     "homepage": "https://github.com/SEDARI/ulocks/wiki",
     "license": "MIT",
