@@ -26,6 +26,15 @@ module.exports = {
         role: "role in group",
         attr: "attribute in group"
     },
+    opTypes: {
+        flowFrom: 0,
+        flowTo: 1,
+        write: 0,
+        read: 1,
+        execute: 0,
+        create: 0,
+        delete: 0
+    },
     locks: "./Locks/",
     actions: "./Actions/"
 };
