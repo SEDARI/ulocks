@@ -7,6 +7,13 @@ module.exports = function(Lock) {
         Lock.call(this, lock);
     }
 
+    ClosedLock.meta = {
+        arity: 0,
+        descr: "This lock is always closed.",
+        name: "never",
+        args: []
+    };
+
     Lock.registerLock("closed", ClosedLock);
 
     ClosedLock.prototype = Object.create(Lock.prototype);

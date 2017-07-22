@@ -9,6 +9,13 @@ module.exports = function(Lock) {
         Lock.call(this, lock);
     };
 
+    IsOwnerLock.meta = {
+        scopes: [ "/client", "/sensor" ],
+        arity: 1,
+        descr: "This lock is open iff the currently logged in user owns the entity to which this lock is applied to.",
+        name: "owns"
+    };
+
     Lock.registerLock("isOwner", IsOwnerLock);
 
     IsOwnerLock.prototype = Object.create(Lock.prototype);

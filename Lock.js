@@ -9,6 +9,7 @@ w.level = process.env.LOG_LEVEL;
 var Promise = require('bluebird');
 
 var Entity = require("./Entity.js");
+var ArgTypes = null;
 
 function valid(o) {
     return ((o !== undefined) && (o !== null));
@@ -80,6 +81,11 @@ function Lock(lock) {
  * @private
  */
 var lockConstructors = {};
+var lockInfos = {};
+
+Lock.getLockInfos = function() {
+    return lockInfos;
+}
 
 function readLocks(dir) {
     var lockFiles = [];
@@ -144,6 +150,11 @@ Lock.init = function(settings) {
         w.error("Unable to initialize Locks. Invalid 'settings.locks' property!");
         return Promise.reject(new Error("Unable to initialize Locks. Invalid settings.locks property!"));
     }
+
+    if(valid(settings.argTypes))
+        ArgTypes = settings.argTypes;
+    else
+        w.warn("No argument types specified for your current lock system!");
 
     // if settings.locks starts with path separator, it contains the absolute
     // path to the directory from which the locks should be loaded
@@ -220,6 +231,50 @@ Lock.registerLock = function (type, constructor) {
         throw new Error("Constructor for "+type+" is invalid.");
         return;
     }
+
+    if(!valid(lockInfos[type]))
+        lockInfos[type] = {};
+
+    if(!valid(constructor.meta)) {
+        w.error("Lock '"+type+"' does not specify required meta information. Lock ignored!");
+        return;
+    }
+
+    if(!valid(constructor.meta.arity)) {
+        w.error("Lock '"+type+"' does not specify arity. Lock ignored!");
+        return;
+    } else
+        lockInfos[type].arity = constructor.meta.arity;
+
+    if(!valid(constructor.meta.scopes)) {
+        w.warn("Lock '"+type+"' does not specify any scopes. Lock is valid for all entity types!");
+    } else {
+        for(var s in constructor.meta.scopes) {
+            if(!valid(Entity.Types[constructor.meta.scopes[s]])) {
+                w.error("Lock '"+type+"' specifies scope '"+constructor.meta.scopes[s]+"' which does not represent an entity type. Lock ignored!");
+                delete lockInfos[type];
+                return;
+            }
+        }
+        lockInfos[type].scopes = constructor.meta.scopes;
+    }
+
+    if(valid(constructor.meta.name))
+        lockInfos[type].name = constructor.meta.name;
+
+    if(valid(constructor.meta.args) && valid(ArgTypes)) {
+        var aTypes = constructor.meta.args;
+        for(var a in aTypes) {
+            var aType = aTypes[a];
+            if(!valid(ArgTypes[aType])) {
+                w.warn("Lock '"+ type +"' specifies argument type '"+aType+"' which does not represent a valid argument type. Lock may not be configurable in, e.g., UI components");
+            }
+        }
+        lockInfos[type].args = constructor.meta.args;
+    }
+    
+    if(valid(constructor.meta.descr))
+        lockInfos[type].descr = constructor.meta.descr;
 
     w.info("Success: Lock '"+type+"' is now registered.");
 
