@@ -27,8 +27,6 @@ module.exports = {
         attr: "attribute in group"
     },
     opTypes: {
-        flowFrom: 0,
-        flowTo: 1,
         write: 0,
         read: 1,
         execute: 0,
