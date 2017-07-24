@@ -1,5 +1,6 @@
 "use strict";
 
+var clone = require('clone');
 var fs = require("fs");
 var path = require("path");
 var w = require("winston");
@@ -17,6 +18,11 @@ function valid(o) {
  * @param {Object} action JSON describing an action
  */
 function Action(action) {
+    if(!valid(actionConstructors)) {
+        w.error("Actions have not been initialized yet!");
+        throw new Error("Actions have not been initialized yet");
+    }
+
     if(this.constructor === Object &&
        action && action.action && actionConstructors[action.action]) {
         throw new Error("Action: Use Action.createAction to generate Action of type '"+action.action+"'");
@@ -137,8 +143,10 @@ Action.createAction = function(action) {
         throw new Error(m);
     }
 
-    if(!actionConstructors[action.action])
-        throw new Error("Action framework has not been initialized. Did you init the ulock system?");
+    if(!valid(actionConstructors)) {
+        w.error("Actions have not been initialized yet!");
+        throw new Error("Actions have not been initialized yet");
+    }
 
     if(!(action instanceof Action) && !action.action)
         throw new Error("Action: Cannot create an action from other than an Action!");
@@ -222,7 +230,7 @@ Action.prototype.eq = function(action) {
  * @abstract
  */
 Action.prototype.lub = function(action) {
-    w.error("Action '"+this.action+"' is required to overwrite method Action.prototype.lub!");
+    w.error("Action '"+this.action+"' is required to overwrite method Action.lub!");
     throw new Error("Action '"+this.action+"' is required to overwrite method Action.prototype.lub!");
 };
 
@@ -234,8 +242,43 @@ Action.prototype.lub = function(action) {
  * @abstract
  */
 Action.prototype.le = function (action) {
-    w.error("Action '"+this.action+"' is required to overwrite method Action.prototype.le!");
+    w.error("Action '"+this.action+"' is required to overwrite method Action.le!");
     throw new Error("Action '"+this.action+"' is required to overwrite method Action.prototype.le!");
 };
+
+Action.prototype.apply = function(data, context, scope, decision) {
+    w.error("Action '"+this.action+"' is required to overwrite method Action.apply!");
+    return Promise.reject(new Error("Action '"+this.action+"' is required to overwrite method Action.apply!"));
+}
+
+Action.applyAll = function(data, context, scope, decision) {
+    return new Promise(function(resolve, reject) {
+        if(decision && !(decision.actions instanceof Array))
+            return reject();
+        else {
+            var actions = decision.actions;
+            if(actions.length > 0) {
+                var newData = Promise.resolve(clone(data));
+                actions.forEach(function(action) {
+                    newData = newData.then(function(v) {
+                        return action.apply(v, context, scope, decision);
+                    }, function(e) {
+                        w.error("Action.applyAll is unable to apply all actions. One action is defined inappropriately!");
+                        return Promise.reject(e);
+                    });
+                });
+                
+                newData.then(function(v) {
+                    w.debug("All actions have been applied.");
+                    resolve(v);
+                }, function(e) {
+                    reject(e);
+                });
+            } else {
+                resolve(null);
+            }
+        }
+    });
+}
 
 module.exports = Action;

@@ -105,6 +105,8 @@ function processConflicts(conflicts1, conflicts2) {
 };
 
 function Policy(flows, entity) {
+    w.debug("Policy.Policy("+JSON.stringify(flows)+", "+entity+")");
+    
     if(!flows)
         throw new Error("Policy: Cannot construct policy without valid flow specifications.");
 
@@ -119,15 +121,44 @@ function Policy(flows, entity) {
             this.entity = new Entity(policy.entity);
         }
 
-        console.log("policy: ", policy);
-
         if(policy.hasOwnProperty("flows") && valid(policy.flows)) {
             this.flows = {};
-            for(var op in policy.flows) {
-                var opFlows = policy.flows[op].flows;
-                for(var i in opFlows) {
-                    var newFlow = new Flow(opFlows[i]);
+            // support old format without operation classification
+            if(policy.flows instanceof Array) {
+                for(var i in policy.flows) {
+                    var newFlow = new Flow(policy.flows[i]);
                     this.addFlow(newFlow);
+                }
+            } else {
+                for(var op in policy.flows) {
+                    var opFlows = policy.flows[op].flows;
+                    for(var i in opFlows) {
+                        var newFlow = new Flow(opFlows[i]);
+                        this.addFlow(newFlow);
+                    }
+
+                    var opActions = policy.flows[op].actions;
+                    if(valid(opActions)) {
+                        this.flows[op].actions = [];
+                        for(var i in opActions) {
+                            var newAction = Action.createAction(opActions[i]);
+                            this.flows[op].actions.push(newAction);
+                        }
+                    }
+                }
+            }
+        }
+
+        // This only supports actions in the old policy format
+        // and simplifies their definition
+        if(policy.hasOwnProperty("actions") && valid(policy.actions)) {
+            for(var op in this.flows) {
+                if(policy.actions.hasOwnProperty(op)) {
+                    this.flows[op].actions = [];
+                    for(var a in policy.actions[op]) {
+                        var newAction = Action.createAction((policy.actions[op])[a]);
+                        this.flows[op].actions.push(newAction);
+                    }
                 }
             }
         }
@@ -137,10 +168,9 @@ function Policy(flows, entity) {
         if(valid(entity))
             this.entity = new Entity(entity);
 
-        console.log("Construct Policy from ", flows);
-
         if(valid(flows)) {
             if(flows instanceof Array) {
+                w.debug("Construct Policy from flow array");
                 this.flows = {};
                 for(var i in flows)
                     this.addFlow(new Flow(flows[i]));
@@ -243,7 +273,6 @@ Policy.prototype.addFlow = function(newFlow) {
             if(!this.flows.hasOwnProperty(newFlow.op)) {
                 this.flows[newFlow.op] = {};
                 this.flows[newFlow.op].flows = [];
-                this.flows[newFlow.op].actions = [];
             }
             this.flows[newFlow.op].flows.push(newFlow);
         }
@@ -255,13 +284,25 @@ Policy.prototype.getFlows = function(op) {
     if(!valid(op)) {
         var all = [];
         for(var op in this.flows) {
-            console.log("FLOWS FOR "+op+": ", this.flows[op].flows.length);
             all = all.concat(this.flows[op].flows);
         }
         return all;
     } else {
         if(this.flows.hasOwnProperty(op))
             return this.flows[op].flows;
+        else
+            return null;
+    }   
+};
+
+Policy.prototype.getActions = function(op) {
+    if(!valid(op)) {
+        return null;
+    } else {
+        if(this.flows.hasOwnProperty(op) &&
+           (this.flows[op].actions instanceof Array) &&
+           this.flows[op].actions.length > 0)
+            return this.flows[op].actions;
         else
             return null;
     }   
@@ -334,7 +375,7 @@ Policy.prototype.checkIncoming = function(trgPolicy, context) {
     return new Promise(function(resolve, reject) {
         Promise.all(item_flowPromises).then(function(itemEvals) {
             Promise.all(entity_flowPromises).then(function(entityEvals) {
-                console.log("CONFLICTS: ", itemEvals, entityEvals);
+                // console.log("CONFLICTS: ", itemEvals, entityEvals);
                 
                 resolve(processConflicts(itemEvals, entityEvals));
             }, function(e) {
@@ -405,11 +446,16 @@ Policy.prototype.checkAccess = function(subjectPolicy, context, operation) {
 };
 
 // TODO: also use writerPolicy
+// TODO: Check whether op is set in test cases
+// TODO: check whether this method should be replaced by checkAccess entirely
 Policy.prototype.checkWrite = function(writerPolicy, context, op) {
     var self = this;
 
     if(!valid(writerPolicy) || !valid(context) || !valid(context.sender))
         return Promise.reject(new Error("Policy.checkWrite: Invalid writerPolicy or context specification!"));
+
+    if(!valid(op))
+        op = "write";
 
     return new Promise(function(resolve, reject) {
         var flowPromises = [];
@@ -417,7 +463,6 @@ Policy.prototype.checkWrite = function(writerPolicy, context, op) {
         w.debug("Context: " + JSON.stringify(context, null, 2));
         w.debug("WriterPolicy: " + writerPolicy);
         w.debug("ObjectPolicy: " + self);
-        console.log("HERE");
 
         // check whether the writer with writerPolicy can write to *self*
         var opFlows = self.getFlows(op);
@@ -428,8 +473,15 @@ Policy.prototype.checkWrite = function(writerPolicy, context, op) {
 
         Promise.all(flowPromises).then(function(results) {
             var evalResult = processConflicts(results);
-            // TODO: Backwards compatibility
+            // Backwards compatibility
             evalResult.result = evalResult.grant;
+            
+            if(!evalResult.grant) {
+                var a = self.getActions(op);
+                if(a !== null)
+                    evalResult.actions = a;
+            }
+            
             resolve(evalResult);
         }, function(error) {
             reject(error);
@@ -445,6 +497,9 @@ Policy.prototype.checkRead = function(readerPolicy, context, op) {
     if(!valid(readerPolicy) || !valid(context) || !valid(context.sender))
         return Promise.reject(new Error("Policy.prototype.checkRead: Invalid readerPolicy or context specification!"));
 
+    if(!valid(op))
+        op = "read";
+
     return new Promise(function(resolve, reject) {
         w.debug("============ checkReadAccess ============");
 
@@ -459,6 +514,12 @@ Policy.prototype.checkRead = function(readerPolicy, context, op) {
             var finalResult = processConflicts(results);
             // TODO: Backwards compatibility
             finalResult.result = finalResult.grant;
+
+            if(!finalResult.grant) {
+                var a = self.getActions(op);
+                if(a !== null)
+                    finalResult.actions = a;
+            }
             resolve(finalResult);
         }, function(error) {
             reject(error);
@@ -545,16 +606,12 @@ Policy.prototype.le = function(otherPol, op) {
     if(flows1 === null || flows1.length === 0)
         return false;
 
-    console.log("flows1.length: ", flows1.length);
-    console.log("flows2.length: ", flows2.length);
-
     var covered1 = [];
     for(var f1 in flows1) {
         var flow1 = flows1[f1];
         for(var f2 in flows2) {
             var flow2 = flows2[f2];
             if(flow1.le(flow2)) {
-                console.log("flow1 < flow2");
                 covered1[f1] = true;
             }
         }
@@ -568,8 +625,6 @@ Policy.prototype.le = function(otherPol, op) {
             complies = false;
             break;
         }
-
-    console.log("complies: ", complies);
 
     return complies;
 };
@@ -679,36 +734,58 @@ Policy.prototype.lub = function() {
         }
     }
 
-    console.log("THIS: "+ JSON.stringify(this));
-    console.log("ARGUMENTS: ");
-    for(var i in arguments) {
-        console.log("\t"+i+": " + arguments[i]);
-    }
-    console.log("NEW POLICY: " + JSON.stringify(newPolicy));
-    
     return newPolicy;
+}
+
+// TODO: be more flexible in the call (e.g. ommitt context and scope)
+Policy.enforce = function(data, context, scope, decision) {
+    if(decision.grant) {
+        return data;
+    } else {
+        if(valid(decision.actions)) {
+            return Action.applyAll(data, context, scope, decision);
+        } else {
+            return Promise.reject(null);
+        }
+    }
 }
 
 Policy.prototype.toString = function() {
     var str = "";
 
-    if(this.entity === null)
+    if(!valid(this.entity))
         str += "<Allowed flows: ";
     else
         str += "<Allowed flows for entity: "+this.entity+": ";
 
-    str += "[";
+    str += "{ ";
 
     for(var op in this.flows) {
-        for(var f in this.flows[op]) {
-            var flow = this.flows[op][f];
+        str += "\n\t" + op + ": [\n";
+        for(var f in this.flows[op].flows) {
+            var flow = (this.flows[op].flows)[f];
             if(f > 0)
-                str += ",\n\t";
-            str += flow;
+                str += ",\n";
+            str += "\t\t" + flow;
         }
+
+        if(valid(this.flows[op].actions) && this.flows[op].actions.length > 0) {
+            str += "\n\t\tdo: [\n";
+            
+            for(var a in this.flows[op].actions) {
+                var action = (this.flows[op].actions)[a];
+                if(a > 0)
+                    str += ",\n";
+                str += "\t\t\t" + action;
+            }
+            
+            str += "\n\t\t]";
+        }
+
+        str += "\n\t]";
     }
 
-    str += "]>";
+    str += "}>";
 
     return str;
 }

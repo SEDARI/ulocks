@@ -75,7 +75,8 @@ function Flow(flow) {
         }
     }
 
-    if(flow.hasOwnProperty('actions') && valid(flow.actions)) {
+    // TODO: Disable as actions moved up to Policy level (for now)
+    /* if(flow.hasOwnProperty('actions') && valid(flow.actions)) {
         this.actions = [];
         for(var i in flow.actions) {
             try {
@@ -87,7 +88,7 @@ function Flow(flow) {
                 break;
             }
         }
-    }
+    }*/
 }
 
 Flow.OpTypes = null;
@@ -109,7 +110,6 @@ Flow.prototype.hasTrg = function() {
     return (Flow.OpTypes[this.op] === 1)
 };
 
-// TODO: also compare operations and actions!!
 Flow.prototype.eq = function(otherFlow, conflicts) {
     var showConflicts = false;
     var matched = true;
@@ -473,9 +473,10 @@ Flow.prototype.toString = function() {
         } else
             str += "always";
 
-        str = "{"+str+" ==> TARGET";
+        str = "{ "+str+" ==> TARGET";
 
-        if(this.hasOwnProperty('actions')) {
+        // TODO: Disabled for now as actions moved up to policy level
+        /* if(this.hasOwnProperty('actions')) {
             var al = this.actions.length
             str += " do ";
 
@@ -486,8 +487,8 @@ Flow.prototype.toString = function() {
             });
 
             str += " ";
-        }
-        str += "}";
+        }*/
+        str += " }";
     } else {
         str = "{ SOURCE ==> ";
         if(this.hasOwnProperty('locks')) {
@@ -502,7 +503,8 @@ Flow.prototype.toString = function() {
         } else
             str += "always";
 
-        if(this.hasOwnProperty('actions')) {
+        // TODO: Disabled for now as actions moved up to policy level
+        /* if(this.hasOwnProperty('actions')) {
             var al = this.actions.length
             str += " do ";
 
@@ -513,14 +515,15 @@ Flow.prototype.toString = function() {
             });
 
             str += " ";
-        }
+        }*/
 
-        str += "}";
+        str += " }";
     }
     return str;
 };
 
-Flow.prototype.actOn = function(data, context, scope) {
+// TODO: Disabled for now as actions moved up to policy level
+/* Flow.prototype.actOn = function(data, context, scope) {
     var self = this;
     return new Promise(function(resolve, reject) {
         if(self.hasOwnProperty('actions')) {
@@ -548,7 +551,7 @@ Flow.prototype.actOn = function(data, context, scope) {
         } else
             resolve(clone(data));
     });
-}
+}*/
 
 Flow.prototype.compile2PolicyEval = function() {
     var srctrg = this.source ? this.source.compile2PolicyEval() : this.target.compile2PolicyEval();
