@@ -15,6 +15,13 @@ var Entity = require("../Entity.js");
 var Context = require("../Context.js");
 var settings = require("./settings.js");
 
+function lz(h) {
+    if(h < 10)
+        return "0" + h;
+    else
+        return "" + h;
+}
+
 describe("Policy class must handle", function() {
 
     beforeEach(function() {
@@ -351,12 +358,10 @@ describe("Policy class must handle", function() {
 
             var incoming = [];
             var allFlows = p2.getFlows();
-            console.log("allFlows: ", allFlows);
             for(var f in allFlows)
                 if(allFlows[f].hasSrc())
                     incoming.push(allFlows[f]);
             var outgoing = [];
-            allFlows = p2.getFlows();
             for(var f in allFlows)
                 if(allFlows[f].hasTrg())
                     outgoing.push(allFlows[f]);
@@ -1132,16 +1137,19 @@ describe("Policy class must handle", function() {
 
             var r = targetPolicy.checkAccess(subjectPolicy, c, "write");
 
-            expect(r).to.eventually.eql({grant: false, cond: false, conflicts: [], result: false}); 
+            return expect(r).to.eventually.eql({grant: false, cond: false, conflicts: [], result: false}); 
         });
 
         it("check access of manually generated Policies", function() {
+            var currentDate = new Date();
+            var hours = currentDate.getHours();
+            
             var outputPol = new Policy({
                 "entity": {"type": "/client", "id": "69426370.b44304" },
-                "flows": [ { op: "read", "locks": [ { "path": "inTimePeriod", "args": [ "10:00", "12:00" ] } ] } ] });
+                "flows": [ { op: "read", "locks": [ { "path": "inTimePeriod", "args": [ lz(hours)+":00", lz(hours+2)+":00" ] } ] } ] });
             var inputPol = new Policy({
                 "entity": {"type": "/client", "id": "490fd2de.ab6a94", "input": "0" },
-                "flows": [ { op: "write", "locks": [ { "path": "inTimePeriod", "args": [ "09:00", "13:00" ] } ] } ] });
+                "flows": [ { op: "write", "locks": [ { "path": "inTimePeriod", "args": [ lz(hours-1)+":00", lz(hours+4)+":00" ] } ] } ] });
 
             var input = new Entity({"type": "/client", "id": "490fd2de.ab6a94", "input": "0" });
             var output =  new Entity({"type": "/client", "id": "69426370.b44304" });
@@ -1151,7 +1159,7 @@ describe("Policy class must handle", function() {
 
             var result = inputPol.checkAccess(outputPol, c, "write");
 
-            expect(result).to.eventually.eql({"grant": true, "cond": false, "result": true});
+            return expect(result).to.eventually.eql({"grant": true, "cond": false, "result": true});
 
         });
 
@@ -1382,6 +1390,77 @@ describe("Policy class must handle", function() {
             var r1 = pol.getFlows("read").length;
             expect(r0).to.equal(8);
             expect(r1).to.equal(4);
+        });
+    });
+
+    describe("applying actions", function() {
+        it("ignore dummy data", function() {
+            var currentDate = new Date();
+            var hours = currentDate.getHours();
+            
+            var s = new Entity({"type": "/user", "id": "490fd2de.ab6a94"});
+            var o =  new Entity({"type": "/sensor", "id": "69426370.b44304" });
+            var c = new Context({type: s.type, data: s},
+                                {type: o.type, data:o});
+            var op = new Policy({ flows: [ { op: "read", locks: [ { lock: "inTimePeriod", args: [ lz(hours-2)+":00", lz(hours-1)+":00" ] } ] } ], actions: { "read": [ { action: "ignore" } ] } });
+            var sp = new Policy({ flows: [ { op: "read" }, { op: "write" } ] } );
+            var data = "This is dummy data.";
+            
+            var r = op.checkAccess(sp, c, "read").then(Policy.enforce.bind(null, data, c, "/user"));
+
+            return expect(r).to.eventually.equal(data);
+        });
+
+        it("delete dummy data", function() {
+            var currentDate = new Date();
+            var hours = currentDate.getHours();
+            
+            var s = new Entity({"type": "/user", "id": "490fd2de.ab6a94"});
+            var o =  new Entity({"type": "/sensor", "id": "69426370.b44304" });
+            var c = new Context({type: s.type, data: s},
+                                {type: o.type, data:o});
+            var op = new Policy({ flows: [ { op: "read", locks: [ { lock: "inTimePeriod", args: [ lz(hours-2)+":00", lz(hours-1)+":00" ] } ] } ], actions: { "read": [ { action: "delete" } ] } });
+            var sp = new Policy({ flows: [ { op: "read" }, { op: "write" } ] } );
+            var data = "This is dummy data.";
+            
+            var r = op.checkAccess(sp, c, "read").then(Policy.enforce.bind(null, data, c, "/user"));
+
+            return expect(r).to.eventually.equal(null);
+        });
+
+        // Note: not a good test! Try to compute randomness of string?
+        it("randomize dummy data", function() {
+            var currentDate = new Date();
+            var hours = currentDate.getHours();
+            
+            var s = new Entity({"type": "/user", "id": "490fd2de.ab6a94"});
+            var o =  new Entity({"type": "/sensor", "id": "69426370.b44304" });
+            var c = new Context({type: s.type, data: s},
+                                {type: o.type, data:o});
+            var op = new Policy({ flows: [ { op: "read", locks: [ { lock: "inTimePeriod", args: [ lz(hours-2)+":00", lz(hours-1)+":00" ] } ] } ], actions: { "read": [ { action: "randomize" } ] } });
+            var sp = new Policy({ flows: [ { op: "read" }, { op: "write" } ] } );
+            var data = "This is dummy data.";
+            
+            var r = op.checkAccess(sp, c, "read").then(Policy.enforce.bind(null, data, c, "/user"));
+
+            return expect(r).to.eventually.not.equal(data);
+        });
+
+        it("replace dummy data", function() {
+            var currentDate = new Date();
+            var hours = currentDate.getHours();
+            
+            var s = new Entity({"type": "/user", "id": "490fd2de.ab6a94"});
+            var o =  new Entity({"type": "/sensor", "id": "69426370.b44304" });
+            var c = new Context({type: s.type, data: s},
+                                {type: o.type, data:o});
+            var op = new Policy({ flows: [ { op: "read", locks: [ { lock: "inTimePeriod", args: [ lz(hours-2)+":00", lz(hours-1)+":00" ] } ] } ], actions: { "read": [ { action: "replace", args: ["fixed", "TEXT"] } ] } });
+            var sp = new Policy({ flows: [ { op: "read" }, { op: "write" } ] } );
+            var data = "This is dummy data.";
+            
+            var r = op.checkAccess(sp, c, "read").then(Policy.enforce.bind(null, data, c, "/user"));
+
+            return expect(r).to.eventually.equal("TEXT");
         });
     });
 });

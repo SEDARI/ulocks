@@ -448,39 +448,4 @@ describe("Flow class", function() {
             return expect(r).to.eventually.eql({ open: false, cond: false, locks: [ l ] } );
         });
     });
-
-    describe("applying flow actions", function() {
-        it("ignore dummy data", function() {
-            var f = new Flow({ op: "read", locks: [ { lock: "inTimePeriod", args: [ "10:00", "11:00" ] } ], actions: [ { action: "ignore" } ] } );
-            var dummyContext = { isStatic: false };
-            var data = "This is dummy data.";
-
-            return expect(f.actOn(data)).to.eventually.equal(data);
-        });
-
-        it("delete dummy data", function() {
-            var f = new Flow({ op: "read", locks: [ { lock: "inTimePeriod", args: [ "10:00", "11:00" ] } ], actions: [ { action: "delete" } ] } );
-            var dummyContext = { isStatic: false };
-            var data = "This is dummy data.";
-
-            return expect(f.actOn(data)).to.eventually.equal(null);
-        });
-
-        // Note: not a good test! Try to compute randomness of string?
-        it("randomize dummy data", function() {
-            var f = new Flow({ op: "read", locks: [ { lock: "inTimePeriod", args: [ "10:00", "11:00" ] } ], actions: [ { action: "randomize" } ] } );
-            var dummyContext = { isStatic: false };
-            var data = "This is dummy data.";
-
-            return expect(f.actOn(data)).to.eventually.not.equal(data);
-        });
-
-        it("replace dummy data", function() {
-            var f = new Flow({ op: "read", locks: [ { lock: "inTimePeriod", args: [ "10:00", "11:00" ] } ], actions: [ { action: "replace", args: [ "fixed", "TEXT" ] } ] } );
-            var dummyContext = { isStatic: false };
-            var data = "This is dummy data.";
-
-            return expect(f.actOn(data)).to.eventually.equal("TEXT");
-        });
-    });
 });
