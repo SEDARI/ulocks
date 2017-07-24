@@ -179,14 +179,17 @@ Lock.createLock = function(lock) {
     if(!lock)
         return new Lock();
 
-    // console.log("createLock: ", lock);
-
     if(lock.path)
         lock.lock = lock.path;
 
     if(!(lock instanceof Lock) && !lock.lock) {
         throw new Error("Lock: Cannot create a lock from other than a Lock!");
         return null;
+    }
+
+    if(!valid(lockConstructors)) {
+        w.error("Locks have not been initialized yet!");
+        throw new Error("Locks have not been initialized yet");
     }
 
     if(!lockConstructors[lock.lock]) {
