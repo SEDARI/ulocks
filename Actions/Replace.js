@@ -5,7 +5,7 @@ module.exports = function(Action) {
     "use strict";
     
     var Replace = function(action) {
-	Action.call(this, action);
+	    Action.call(this, action);
     }
 
     Action.register("replace", Replace);
@@ -18,24 +18,24 @@ module.exports = function(Action) {
     }
 
     Replace.Types = Object.freeze({
-	"fixed" : "fixed",
-	"subject": "subject", // some subject property
-	"object": "object", // object property
-	"data": "data", // data property
-	"function": "function" // some function executed on the data
-	                       // and which returns the replacement
+	    "fixed" : "fixed",
+	    "subject": "subject", // some subject property
+	    "object": "object", // object property
+	    "data": "data", // data property
+	    "function": "function" // some function executed on the data
+	    // and which returns the replacement
     });
 
     Replace.prototype.apply = function(msg) {
-	w.debug("Apply replacement action");
+	    w.debug("Apply replacement action");
 
-	if(msg === null || msg === undefined)
-	    return Promise.resolve(msg);
+	    if(msg === null || msg === undefined)
+	        return Promise.resolve(msg);
 
-	if(this.args[0] == Replace.Types.fixed) {
-	    msg = this.args[1];
-	}
-	
+	    if(this.args[0] == Replace.Types.fixed) {
+	        msg = this.args[1];
+	    }
+	    
         return Promise.resolve(msg);
     }
     

@@ -5,7 +5,7 @@ module.exports = function(Action) {
     "use strict";
     
     var Randomize = function(action) {
-	Action.call(this, action);
+	    Action.call(this, action);
     }
 
     Action.register("randomize", Randomize);
@@ -18,21 +18,21 @@ module.exports = function(Action) {
     }
 
     Randomize.prototype.apply = function(msg) {
-	w.debug("Apply randomization action");
-	
-	if(msg === null || msg === undefined)
-	    return Promise.resolve(msg);
-	
-	var l = msg.length;
-	// store possible characters in arg of action!
-	var choice = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"+
-	    "abcdefghijklmnopqrstuvwxyz"+
-	    "0123456789"+"?ß*+'#_-:.;,!\"§$%&/()=";
-	
-	msg = "";
-	for(;l > 0; l--)
-	    msg += choice.charAt(Math.floor(Math.random() * choice.length));
-	
+	    w.debug("Apply randomization action");
+	    
+	    if(msg === null || msg === undefined)
+	        return Promise.resolve(msg);
+	    
+	    var l = msg.length;
+	    // store possible characters in arg of action!
+	    var choice = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"+
+	        "abcdefghijklmnopqrstuvwxyz"+
+	        "0123456789"+"?ß*+'#_-:.;,!\"§$%&/()=";
+	    
+	    msg = "";
+	    for(;l > 0; l--)
+	        msg += choice.charAt(Math.floor(Math.random() * choice.length));
+	    
         return Promise.resolve(msg);
     }
     

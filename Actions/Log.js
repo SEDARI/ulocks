@@ -20,7 +20,7 @@ module.exports = function(Action) {
     Log.prototype.apply = function(msg) {
         w.debug("Apply log action");
 
-	w.info("Log-Action: " + JSON.stringify(msg));
+	    w.info("Log-Action: " + JSON.stringify(msg));
 
         return Promise.resolve(msg);
     }
