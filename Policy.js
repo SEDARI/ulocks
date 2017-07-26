@@ -740,12 +740,16 @@ Policy.prototype.lub = function() {
 // TODO: be more flexible in the call (e.g. ommitt context and scope)
 Policy.enforce = function(data, context, scope, decision) {
     if(decision.grant) {
-        return data;
+        return Promise.resolve(data);
     } else {
-        if(valid(decision.actions)) {
-            return Action.applyAll(data, context, scope, decision);
+        if(valid(decision)) {
+            if(valid(decision.actions)) {
+                return Action.applyAll(data, context, scope, decision);
+            } else {
+                return Promise.resolve(null);
+            }
         } else {
-            return Promise.reject(null);
+            return Promise.reject(new Error("Policy.enforce expect a checkAccess/checkRead/checkWrite result as its fourth argument"));
         }
     }
 }
