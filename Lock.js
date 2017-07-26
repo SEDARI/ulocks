@@ -239,45 +239,44 @@ Lock.registerLock = function (type, constructor) {
         lockInfos[type] = {};
 
     if(!valid(constructor.meta)) {
-        w.error("Lock '"+type+"' does not specify required meta information. Lock ignored!");
-        return;
-    }
-
-    if(!valid(constructor.meta.arity)) {
-        w.error("Lock '"+type+"' does not specify arity. Lock ignored!");
-        return;
-    } else
-        lockInfos[type].arity = constructor.meta.arity;
-
-    if(!valid(constructor.meta.scopes)) {
-        w.warn("Lock '"+type+"' does not specify any scopes. Lock is valid for all entity types!");
+        w.warn("Lock '"+type+"' does not specify required meta information. Lock ignored!");
     } else {
-        for(var s in constructor.meta.scopes) {
-            if(!valid(Entity.Types[constructor.meta.scopes[s]])) {
-                w.error("Lock '"+type+"' specifies scope '"+constructor.meta.scopes[s]+"' which does not represent an entity type. Lock ignored!");
-                delete lockInfos[type];
-                return;
+        if(!valid(constructor.meta.arity)) {
+            w.error("Lock '"+type+"' does not specify arity. Lock ignored!");
+            return;
+        } else
+            lockInfos[type].arity = constructor.meta.arity;
+        
+        if(!valid(constructor.meta.scopes)) {
+            w.warn("Lock '"+type+"' does not specify any scopes. Lock is valid for all entity types!");
+        } else {
+            for(var s in constructor.meta.scopes) {
+                if(!valid(Entity.Types[constructor.meta.scopes[s]])) {
+                    w.error("Lock '"+type+"' specifies scope '"+constructor.meta.scopes[s]+"' which does not represent an entity type. Lock ignored!");
+                    delete lockInfos[type];
+                    return;
+                }
             }
+            lockInfos[type].scopes = constructor.meta.scopes;
         }
-        lockInfos[type].scopes = constructor.meta.scopes;
-    }
-
-    if(valid(constructor.meta.name))
-        lockInfos[type].name = constructor.meta.name;
-
-    if(valid(constructor.meta.args) && valid(ArgTypes)) {
-        var aTypes = constructor.meta.args;
-        for(var a in aTypes) {
-            var aType = aTypes[a];
-            if(!valid(ArgTypes[aType])) {
-                w.warn("Lock '"+ type +"' specifies argument type '"+aType+"' which does not represent a valid argument type. Lock may not be configurable in, e.g., UI components");
+        
+        if(valid(constructor.meta.name))
+            lockInfos[type].name = constructor.meta.name;
+        
+        if(valid(constructor.meta.args) && valid(ArgTypes)) {
+            var aTypes = constructor.meta.args;
+            for(var a in aTypes) {
+                var aType = aTypes[a];
+                if(!valid(ArgTypes[aType])) {
+                    w.warn("Lock '"+ type +"' specifies argument type '"+aType+"' which does not represent a valid argument type. Lock may not be configurable in, e.g., UI components");
+                }
             }
+            lockInfos[type].args = constructor.meta.args;
         }
-        lockInfos[type].args = constructor.meta.args;
-    }
     
-    if(valid(constructor.meta.descr))
-        lockInfos[type].descr = constructor.meta.descr;
+        if(valid(constructor.meta.descr))
+            lockInfos[type].descr = constructor.meta.descr;
+    }
 
     w.info("Success: Lock '"+type+"' is now registered.");
 
