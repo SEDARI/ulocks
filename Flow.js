@@ -395,6 +395,20 @@ Flow.prototype.lubLock = function(factor) {
     return newLocks;
 };
 
+Flow.prototype.getLocks = function(type) {
+    if(!valid(type)) {
+        var all = [];
+        for(var type in this.locks)
+            all = all.concat(this.locks[type]);
+        return all;
+    } else {
+        if(this.flows.hasOwnProperty(op))
+            return this.locks[op];
+        else
+            return null;
+    }
+}
+
 Flow.prototype.addLock = function(lock) {
     var type = lock.lock;
 

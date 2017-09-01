@@ -280,12 +280,23 @@ Policy.prototype.addFlow = function(newFlow) {
         throw new Error("Policy: Call to addFlow with an object other than a Flow");
 };
 
+Policy.prototype.getSimpleFlows = function(op) {
+    var flows = this.getFlows(op);
+    var all = [];
+    for(var f in flows) {
+        var flow = clone(flows[f]);
+        flow.locks = flow.getLocks();
+        all.push(flow);
+    }
+
+    return all;
+}
+
 Policy.prototype.getFlows = function(op) {
     if(!valid(op)) {
         var all = [];
-        for(var op in this.flows) {
+        for(var op in this.flows)
             all = all.concat(this.flows[op].flows);
-        }
         return all;
     } else {
         if(this.flows.hasOwnProperty(op))
@@ -295,9 +306,12 @@ Policy.prototype.getFlows = function(op) {
     }   
 };
 
-Policy.prototype.getActions = function(op) {
+Policy.prototype.getActions = function(op) { 
     if(!valid(op)) {
-        return null;
+        var all = {};
+        for(var op in this.flows)
+            all[op] = this.flows[op].actions;
+        return all;
     } else {
         if(this.flows.hasOwnProperty(op) &&
            (this.flows[op].actions instanceof Array) &&
