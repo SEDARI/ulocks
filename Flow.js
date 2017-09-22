@@ -398,12 +398,15 @@ Flow.prototype.lubLock = function(factor) {
 Flow.prototype.getLocks = function(type) {
     if(!valid(type)) {
         var all = [];
-        for(var type in this.locks)
-            all = all.concat(this.locks[type]);
+        for(var type in this.locks) {
+            var l = clone(this.locks[type]);
+            all = all.concat(l);
+        }
         return all;
     } else {
-        if(this.flows.hasOwnProperty(op))
-            return this.locks[op];
+        if(this.flows.hasOwnProperty(op)) {
+            return clone(this.locks[op]);
+        }
         else
             return null;
     }

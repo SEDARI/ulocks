@@ -1463,4 +1463,14 @@ describe("Policy class must handle", function() {
             return expect(r).to.eventually.equal("TEXT");
         });
     });
+
+    describe("be backwards compatible", function() {
+        it("generate old policy format", function() {
+            var p1 = new Policy({ flows: [ { op: "read", locks: [ { lock: "inTimePeriod", args: [ "10:00", "11:00" ] } ] }, {op: "write","locks":[{"path":"hasId","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]} ], actions: { "read": [ { action: "replace", args: ["fixed", "TEXT"] } ] } });
+
+            pjson = JSON.stringify(p1.getSimpleFlows());
+
+            return expect(pjson).to.equal(JSON.stringify([ { op: "read", locks: [ { lock: "inTimePeriod", args: [ "10:00", "11:00" ], not:false } ] }, {op: "write","locks":[ {lock:"hasId","args":["09c9129e-e5d7-4b8d-845b-cae6d90858c6"],"not":false}]} ]));
+        });
+    });
 });
