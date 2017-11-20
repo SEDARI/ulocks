@@ -87,36 +87,52 @@ Lock.getLockInfos = function() {
     return lockInfos;
 }
 
-function readLocks(dir) {
+function readLocks(settings) {
+
     var lockFiles = [];
     var locks = [];
     var loads = [];
-
-    try {
-        lockFiles = fs.readdirSync(dir);
-    } catch(err) {
-        w.error("Unable to load Locks from directory '"+dir+"'");
-        return Promise.reject(err);
+    if( settings.locks === "module" && settings.load_from_module){
+      var mod = require(settings.load_from_module);
+      mod.locks.forEach((l)=>{
+            loads.push(new Promise(function(resolve, reject) {
+                try {
+                    l(Lock);
+                    resolve();
+                } catch(err) {
+                    w.error("Unable to load lock in module '"+l+"'! Reason: " + err);
+                    reject(err);
+                }
+            }));
+          })
     }
-
-    lockFiles.forEach(function(lockFile) {
-        var filePath = path.join(dir, lockFile);
-        var stats = fs.statSync(filePath);
-        if (stats.isFile()) {
-            if (/\.js$/.test(filePath)) {
-                loads.push(new Promise(function(resolve, reject) {
-                    try {
-                        var newLock = require(filePath);
-                        newLock(Lock);
-                        resolve();
-                    } catch(err) {
-                        w.error("Unable to load lock in '"+filePath+"'! Reason: " + err);
-                        reject(err);
-                    }
-                }));
-            }
-        }
-    });
+    else{
+      var dir = settings.locks;
+      try {
+          lockFiles = fs.readdirSync(dir);
+          lockFiles.forEach(function(lockFile) {
+              var filePath = path.join(dir, lockFile);
+              var stats = fs.statSync(filePath);
+              if (stats.isFile()) {
+                  if (/\.js$/.test(filePath)) {
+                      loads.push(new Promise(function(resolve, reject) {
+                          try {
+                              var newLock = require(filePath);
+                              newLock(Lock);
+                              resolve();
+                          } catch(err) {
+                              w.error("Unable to load lock in '"+filePath+"'! Reason: " + err);
+                              reject(err);
+                          }
+                      }));
+                  }
+              }
+          });
+      } catch(err) {
+          w.error("Unable to load Locks from directory '"+dir+"'");
+          return Promise.reject(err);
+      }
+    }
 
     return new Promise(function(resolve, reject) {
         Promise.all(loads).then(function() {
@@ -143,7 +159,7 @@ Lock.init = function(settings) {
         w.warn("Lock system has already been initialized. Skip this initialization.");
         return Promise.resolve();
     }
-    
+
     var baseDir = process.cwd();
 
     if(!settings.locks) {
@@ -158,13 +174,14 @@ Lock.init = function(settings) {
 
     // if settings.locks starts with path separator, it contains the absolute
     // path to the directory from which the locks should be loaded
-    if(settings.locks[0] !== path.sep)
+    //if settings.locks is module then we load the modules instead of reading files
+    if(settings.locks !== "module" && settings.locks[0] !== path.sep)
         settings.locks = baseDir + path.sep + settings.locks;
 
     w.info("Searching for locks at '"+settings.locks+"'");
 
     return new Promise(function(resolve, reject) {
-        readLocks(settings.locks).then(function(v) {
+        readLocks(settings).then(function(v) {
             w.info("All locks successfully loaded and registered.");
             resolve();
         }, function(e) {
@@ -246,7 +263,7 @@ Lock.registerLock = function (type, constructor) {
             return;
         } else
             lockInfos[type].arity = constructor.meta.arity;
-        
+
         if(!valid(constructor.meta.scopes)) {
             w.warn("Lock '"+type+"' does not specify any scopes. Lock is valid for all entity types!");
         } else {
@@ -259,10 +276,10 @@ Lock.registerLock = function (type, constructor) {
             }
             lockInfos[type].scopes = constructor.meta.scopes;
         }
-        
+
         if(valid(constructor.meta.name))
             lockInfos[type].name = constructor.meta.name;
-        
+
         if(valid(constructor.meta.args) && valid(ArgTypes)) {
             var aTypes = constructor.meta.args;
             for(var a in aTypes) {
@@ -273,7 +290,7 @@ Lock.registerLock = function (type, constructor) {
             }
             lockInfos[type].args = constructor.meta.args;
         }
-    
+
         if(valid(constructor.meta.descr))
             lockInfos[type].descr = constructor.meta.descr;
     }
