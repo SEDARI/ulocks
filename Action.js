@@ -63,36 +63,56 @@ function Action(action) {
  */
 var actionConstructors = {};
 
-function readActions(dir) {
+function readActions(settings) {
     var actionFiles = [];
     var actions = [];
     var loads = [];
 
-    try {
-        actionFiles = fs.readdirSync(dir);
-    } catch(err) {
-        return Promise.reject(err);
+    if( settings.actions === "module" && settings.load_from_module){
+      var mod = require(settings.load_from_module);
+      mod.actions.forEach((l)=>{
+            loads.push(new Promise(function(resolve, reject) {
+                try {
+                    l(Action);
+                    w.info("Success: Action in '"+l+"' from module is now registered.");
+                    resolve();
+                } catch(err) {
+                    w.error("Unable to load Action in module '"+l+"'! Reason: " + err);
+                    reject(err);
+                }
+            }));
+          })
     }
+    else {
+      var dir;
+      try {
+          dir = settings.actions;
+          actionFiles = fs.readdirSync(dir);
+      } catch(err) {
+          return Promise.reject(err);
+      }
 
-    actionFiles.forEach(function(actionFile) {
-        var filePath = path.join(dir, actionFile);
-        var stats = fs.statSync(filePath);
-        if (stats.isFile()) {
-            if (/\.js$/.test(filePath)) {
-                loads.push(new Promise( function(resolve, reject) {
-                    try {
-                        var newAction = require(filePath);
-                        newAction(Action);
-                        w.info("Success: Action in '"+filePath+"' is now registered.");
-                        resolve();
-                    } catch(err) {
-                        w.error("Unable to load action in '"+filePath+"'!");
-                        reject(err);
-                    }
-                }));
-            }
-        }
-    });
+      actionFiles.forEach(function(actionFile) {
+          var filePath = path.join(dir, actionFile);
+          var stats = fs.statSync(filePath);
+          if (stats.isFile()) {
+              if (/\.js$/.test(filePath)) {
+                  loads.push(new Promise( function(resolve, reject) {
+                      try {
+                          var newAction = require(filePath);
+                          newAction(Action);
+                          w.info("Success: Action in '"+filePath+"' is now registered.");
+                          resolve();
+                      } catch(err) {
+                          w.error("Unable to load action in '"+filePath+"'!");
+                          reject(err);
+                      }
+                  }));
+              }
+          }
+      });
+
+    }
 
     return Promise.all(loads);
 }
@@ -111,7 +131,7 @@ Action.init = function(settings) {
         w.warn("Action system has already been initialized. Skip this initialization.");
         return Promise.resolve();
     }
-    
+
     var baseDir = process.cwd();
 
     if(!settings) {
@@ -127,12 +147,13 @@ Action.init = function(settings) {
 
     // if settings.actions starts with path separator, it contains the absolute
     // path to the directory from which the actions should be loaded
-    if(settings.actions[0] !== path.sep)
+
+    if(settings.actions !== "module" && settings.actions[0] !== path.sep)
         settings.actions = baseDir + path.sep + settings.actions;
 
     w.log('info', "Searching for actions at '"+settings.actions+"'");
 
-    return readActions(settings.actions);
+    return readActions(settings);
 };
 
 // TODO: check whether createAction is required at all!
@@ -267,7 +288,7 @@ Action.applyAll = function(data, context, scope, decision) {
                         return Promise.reject(e);
                     });
                 });
-                
+
                 newData.then(function(v) {
                     w.debug("All actions have been applied.");
                     resolve(v);
